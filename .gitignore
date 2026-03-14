@@ -1,0 +1,16 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Claude Code
+.claude/
+
+# Dev reference files (not deployed)
+sample.html
+sample2.html
+
+# Next.js
+.next/
+out/
+node_modules/
