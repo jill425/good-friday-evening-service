@@ -1,121 +1,161 @@
 'use client'
 import { useEffect, useRef } from 'react'
 import * as THREE from 'three'
+import { gsap } from 'gsap'
 
-// 用 Canvas 生成一個柔邊圓形漸層，模擬雲霧團
-function createCloudTexture() {
-  const size = 256
-  const canvas = document.createElement('canvas')
-  canvas.width = size
-  canvas.height = size
-  const ctx = canvas.getContext('2d')
-  const cx = size / 2
+const STAR_COUNT = 1500
+const SPAWN_DEPTH = 2000
 
-  const gradient = ctx.createRadialGradient(cx, cx, 0, cx, cx, cx)
-  gradient.addColorStop(0,   'rgba(200, 210, 255, 0.18)')
-  gradient.addColorStop(0.4, 'rgba(180, 190, 240, 0.10)')
-  gradient.addColorStop(1,   'rgba(150, 160, 220, 0)')
-
-  ctx.fillStyle = gradient
-  ctx.fillRect(0, 0, size, size)
-  return new THREE.CanvasTexture(canvas)
+function createStar() {
+  const angle = Math.random() * Math.PI * 2
+  const radius = 40 + Math.sqrt(Math.random()) * 600
+  const colorRoll = Math.random()
+  return {
+    x: Math.cos(angle) * radius,
+    y: Math.sin(angle) * radius,
+    z: -(Math.random() * SPAWN_DEPTH),
+    r: colorRoll > 0.85 ? 0.7 : 1.0,
+    g: colorRoll > 0.85 ? 0.85 : 1.0,
+  }
 }
 
 export default function StarScene() {
-  const canvasRef = useRef(null)
+  const mountRef = useRef(null)
 
   useEffect(() => {
-    const canvas = canvasRef.current
-    const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, alpha: true })
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+    // Renderer
+    const container = mountRef.current
+    const renderer = new THREE.WebGLRenderer({ antialias: true })
     renderer.setSize(window.innerWidth, window.innerHeight)
-    renderer.setClearColor(0x000000, 1)
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+    renderer.setClearColor(0x050505)
+    container.appendChild(renderer.domElement)
 
+    // Scene & camera
     const scene = new THREE.Scene()
-    scene.fog = new THREE.FogExp2(0x000000, 0.0008)
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 5000)
 
-    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 3000)
-    camera.position.z = 0
+    // Stars: each star = one line segment (head + tail)
+    const starData = Array.from({ length: STAR_COUNT }, createStar)
+    const positions = new Float32Array(STAR_COUNT * 6)
+    const colors = new Float32Array(STAR_COUNT * 6)
 
-    const texture = createCloudTexture()
-    const cloudCount = 80
+    const geometry = new THREE.BufferGeometry()
+    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3))
+    geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3))
 
-    // 每朵雲的狀態
-    const clouds = Array.from({ length: cloudCount }, () => {
-      const sprite = new THREE.Sprite(
-        new THREE.SpriteMaterial({
-          map: texture,
-          transparent: true,
-          blending: THREE.AdditiveBlending,
-          depthWrite: false,
-          opacity: Math.random() * 0.5 + 0.15,
-        })
-      )
-
-      const size = Math.random() * 600 + 200
-      sprite.scale.set(size, size, 1)
-
-      // 隨機初始位置（深空到近處）
-      sprite.position.set(
-        (Math.random() - 0.5) * 2000,
-        (Math.random() - 0.5) * 1200,
-        -Math.random() * 2000
-      )
-
-      // 每朵雲獨立的漂移速度
-      sprite.userData = {
-        speedZ: Math.random() * 0.8 + 0.3,
-        driftX: (Math.random() - 0.5) * 0.3,
-        driftY: (Math.random() - 0.5) * 0.15,
-      }
-
-      scene.add(sprite)
-      return sprite
+    const material = new THREE.LineBasicMaterial({
+      vertexColors: true,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+      transparent: true,
     })
 
+    scene.add(new THREE.LineSegments(geometry, material))
+
+    // Warp state
+    const state = { speed: 2, fov: 75 }
+    let cameraZ = 0
+    let warpActive = false
+
+    const triggerWarp = () => {
+      if (warpActive) return
+      warpActive = true
+      gsap.to(state, { speed: 80, fov: 110, duration: 3, ease: 'power3.in' })
+    }
+    const releaseWarp = () => {
+      if (!warpActive) return
+      warpActive = false
+      gsap.to(state, { speed: 2, fov: 75, duration: 2, ease: 'power2.out' })
+    }
+
+    // Trigger warp at ~85% of scroll (5 sections × 1500px = 7500px total)
+    const handleScroll = () => {
+      if (window.scrollY > 6000) triggerWarp()
+      else releaseWarp()
+    }
+    window.addEventListener('scroll', handleScroll)
+
+    // Animation loop
     let animId
-    function animate() {
+    const animate = () => {
       animId = requestAnimationFrame(animate)
 
-      clouds.forEach(sprite => {
-        const { speedZ, driftX, driftY } = sprite.userData
-        sprite.position.z += speedZ
-        sprite.position.x += driftX
-        sprite.position.y += driftY
+      cameraZ -= state.speed
+      camera.position.z = cameraZ
+      camera.fov = state.fov
+      camera.updateProjectionMatrix()
 
-        // 超過鏡頭後重置到深處
-        if (sprite.position.z > 200) {
-          sprite.position.set(
-            (Math.random() - 0.5) * 2000,
-            (Math.random() - 0.5) * 1200,
-            -2000
-          )
+      const tailLength = Math.max(2, state.speed * 3)
+
+      for (let i = 0; i < STAR_COUNT; i++) {
+        const s = starData[i]
+
+        // Recycle stars that passed the camera
+        if (s.z > cameraZ + 5) {
+          const angle = Math.random() * Math.PI * 2
+          const radius = 40 + Math.sqrt(Math.random()) * 600
+          s.x = Math.cos(angle) * radius
+          s.y = Math.sin(angle) * radius
+          s.z = cameraZ - SPAWN_DEPTH
         }
-      })
 
+        // Brightness: dim when far, bright when close
+        const dist = cameraZ - s.z
+        const brightness = Math.max(0, 1 - dist / SPAWN_DEPTH)
+
+        // Head vertex
+        positions[i * 6 + 0] = s.x
+        positions[i * 6 + 1] = s.y
+        positions[i * 6 + 2] = s.z
+        // Tail vertex (trails behind in z)
+        positions[i * 6 + 3] = s.x
+        positions[i * 6 + 4] = s.y
+        positions[i * 6 + 5] = s.z + tailLength
+
+        // Head: coloured & bright
+        colors[i * 6 + 0] = s.r * brightness
+        colors[i * 6 + 1] = s.g * brightness
+        colors[i * 6 + 2] = brightness
+        // Tail: fades to black
+        colors[i * 6 + 3] = 0
+        colors[i * 6 + 4] = 0
+        colors[i * 6 + 5] = 0
+      }
+
+      geometry.attributes.position.needsUpdate = true
+      geometry.attributes.color.needsUpdate = true
       renderer.render(scene, camera)
     }
     animate()
 
-    const onResize = () => {
+    const handleResize = () => {
       camera.aspect = window.innerWidth / window.innerHeight
       camera.updateProjectionMatrix()
       renderer.setSize(window.innerWidth, window.innerHeight)
     }
-    window.addEventListener('resize', onResize)
+    window.addEventListener('resize', handleResize)
 
     return () => {
       cancelAnimationFrame(animId)
-      window.removeEventListener('resize', onResize)
-      texture.dispose()
+      window.removeEventListener('scroll', handleScroll)
+      window.removeEventListener('resize', handleResize)
+      geometry.dispose()
+      material.dispose()
       renderer.dispose()
+      if (container?.contains(renderer.domElement)) {
+        container.removeChild(renderer.domElement)
+      }
     }
   }, [])
 
   return (
-    <canvas
-      ref={canvasRef}
-      style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', zIndex: 0, pointerEvents: 'none' }}
-    />
+    <div ref={mountRef} style={{
+      position: 'fixed',
+      top: 0, left: 0,
+      width: '100vw',
+      height: '100vh',
+      zIndex: -1,
+    }} />
   )
 }
