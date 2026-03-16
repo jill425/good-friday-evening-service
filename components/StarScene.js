@@ -20,16 +20,14 @@ function createStar() {
 }
 
 export default function StarScene() {
-  const mountRef = useRef(null)
+  const canvasRef = useRef(null)
 
   useEffect(() => {
-    // Renderer
-    const container = mountRef.current
-    const renderer = new THREE.WebGLRenderer({ antialias: true })
+    // Renderer — use the canvas React already rendered, no appendChild needed
+    const renderer = new THREE.WebGLRenderer({ canvas: canvasRef.current, antialias: true })
     renderer.setSize(window.innerWidth, window.innerHeight)
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
     renderer.setClearColor(0x050505)
-    container.appendChild(renderer.domElement)
 
     // Scene & camera
     const scene = new THREE.Scene()
@@ -143,19 +141,17 @@ export default function StarScene() {
       geometry.dispose()
       material.dispose()
       renderer.dispose()
-      if (container?.contains(renderer.domElement)) {
-        container.removeChild(renderer.domElement)
-      }
     }
   }, [])
 
   return (
-    <div ref={mountRef} style={{
+    <canvas ref={canvasRef} style={{
       position: 'fixed',
       top: 0, left: 0,
       width: '100vw',
       height: '100vh',
       zIndex: -1,
+      display: 'block',
     }} />
   )
 }
