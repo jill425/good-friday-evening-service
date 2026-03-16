@@ -1,14 +1,12 @@
 'use client'
-import dynamic from 'next/dynamic'
-
-const StarScene = dynamic(() => import('@/components/StarScene'), { ssr: false })
-const MainScroll = dynamic(() => import('@/components/MainScroll'), { ssr: false })
+import StarScene from '@/components/StarScene'
+import MainScroll from '@/components/MainScroll'
 
 export default function Home() {
   return (
-    <>
+    <div>
       <StarScene />
       <MainScroll />
-    </>
+    </div>
   )
 }
