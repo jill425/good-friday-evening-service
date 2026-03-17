@@ -1,12 +1,12 @@
 'use client'
-import StarScene from '@/components/StarScene'
-import MainScroll from '@/components/MainScroll'
+import StarBackground from '@/components/StarBackground'
+import StoryScroll from '@/components/StoryScroll'
 
 export default function Home() {
   return (
     <div>
-      <StarScene />
-      <MainScroll />
+      <StarBackground />
+      <StoryScroll />
     </div>
   )
 }

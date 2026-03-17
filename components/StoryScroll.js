@@ -2,7 +2,7 @@
 import { useEffect, useRef } from 'react'
 import { gsap } from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
-import { Slides } from './Sections'
+import { Slides } from '../data/slides'
 
 const directions = [
   { x: () => window.innerWidth * 0.8, y: '-60%', rotateY: -25, rotateX: 12 },
@@ -20,7 +20,7 @@ export default function MainScroll() {
 
       gsap.set('.zoom-image', {
         scale: 0.2, x: 0, y: 0,
-        opacity: 0,
+        opacity: 0.1,
         rotateY: 0, rotateX: 0,
         transformPerspective: 800,
       })
@@ -110,6 +110,7 @@ export default function MainScroll() {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
+            paddingTop: slide.type === 'text' ? '25vh' : 0,
             overflow: 'hidden',
             perspective: '1000px',
             opacity: i === 0 ? 1 : 0,

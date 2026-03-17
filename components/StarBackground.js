@@ -3,7 +3,7 @@ import { useEffect, useRef } from 'react'
 import * as THREE from 'three'
 import { gsap } from 'gsap'
 
-const STAR_COUNT = 3000
+const STAR_COUNT = 4000
 const SPAWN_DEPTH = 2000
 const SCROLL_MULTIPLIER = 0.1
 
@@ -50,15 +50,16 @@ export default function StarScene() {
     circleCanvas.height = 64
     const ctx = circleCanvas.getContext('2d')
     const gradient = ctx.createRadialGradient(32, 32, 0, 32, 32, 32)
-    gradient.addColorStop(0, '#ffffff')
-    gradient.addColorStop(0.1, 'rgba(255,255,255,0.6)')
-    gradient.addColorStop(1, '#000000')
+    gradient.addColorStop(0, 'rgba(255,255,255,1)')
+    gradient.addColorStop(0.3, 'rgba(255,255,255,0.8)')
+    gradient.addColorStop(0.6, 'rgba(255,255,255,0.3)')
+    gradient.addColorStop(1, 'rgba(0,0,0,0)')
     ctx.fillStyle = gradient
     ctx.fillRect(0, 0, 64, 64)
     const circleTexture = new THREE.CanvasTexture(circleCanvas)
 
     const material = new THREE.PointsMaterial({
-      size: 1.5,                          // ← 星星大小，可調整
+      size: 3.5,                          // ← 星星大小，可調整
       map: circleTexture,                 // ← 加上圓形貼圖
       vertexColors: true,
       blending: THREE.AdditiveBlending,
@@ -66,7 +67,9 @@ export default function StarScene() {
       transparent: true,
       sizeAttenuation: true,            // 遠小近大，有透視感
     })
-    scene.add(new THREE.Points(geometry, material))
+    const points = new THREE.Points(geometry, material)
+    points.frustumCulled = false
+    scene.add(points)
 
     const state = { cameraZ: 0, fov: 75 }
     let prevCameraZ = 0
@@ -106,7 +109,7 @@ export default function StarScene() {
 
         if (s.z > cameraZ + 5) {
           respawn()
-          s.z = cameraZ - SPAWN_DEPTH
+          s.z = cameraZ - Math.random() * SPAWN_DEPTH
         } else if (s.z < cameraZ - SPAWN_DEPTH) {
           respawn()
           s.z = cameraZ - Math.random() * SPAWN_DEPTH
