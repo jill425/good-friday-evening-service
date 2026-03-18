@@ -4,7 +4,7 @@
 
 ## 步驟一：建立 Google Sheet
 1. 開啟 [Google Sheets](https://sheets.google.com) 並建立一個新的試算表。
-｀2. 將試算表命名為 `Good Friday Emails` (或您喜歡的名稱)。
+2. 將試算表命名為 `Good Friday Emails` (或您喜歡的名稱)。
 3. 在第一列 (Row 1) 設定欄位名稱：
    - A1: `Timestamp`
    - B1: `Email`
