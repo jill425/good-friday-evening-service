@@ -15,7 +15,7 @@
 
 ```javascript
 /* Google Apps Script */
-var SHEET_NAME = "Sheet1"; // 請確認您的工作表名稱是否為 Sheet1
+var SHEET_NAME = "工作表1"; // 請確認您的工作表名稱是否為 工作表1
 
 function doPost(e) {
   var lock = LockService.getScriptLock();
@@ -66,14 +66,28 @@ function doPost(e) {
 6. 複製產生的 **網頁應用程式網址 (Web App URL)** (以 `https://script.google.com/macros/s/.../exec` 結尾)。
 
 ## 步驟四：設定專案環境變數
-1. 回到本專案。
-2. 在專案根目錄建立或編輯 `.env.local` 檔案。
-3. 加入以下內容 (將 URL 替換為您剛剛複製的網址)：
+
+### 1. 本機開發 (Local Development)
+1. 在專案根目錄建立或編輯 `.env.local` 檔案。
+2. 加入以下內容 (將 URL 替換為您剛剛複製的網址)：
 
 ```bash
-NEXT_PUBLIC_GOOGLE_SCRIPT_URL=https://script.google.com/macros/s/您的ID/exec
+NEXT_PUBLIC_GOOGLE_SCRIPT_URL="https://script.google.com/macros/s/您的ID/exec"
 ```
 
-4. **重新啟動開發伺服器** (Ctrl+C 停止，再執行 `npm run dev`)。
+3. **重新啟動開發伺服器** (Ctrl+C 停止，再執行 `npm run dev`)。
+4. 網頁重整後即可測試填寫 Email，並觀察 Google Sheet 是否出現新資料。
 
-設定完成！現在使用者的 Email 將會直接存入您的 Google Sheet。
+### 2. 部署至 Netlify (Remote Deployment)
+由於 `.env.local` 不會上傳到 GitHub，您必須在 Netlify 後台設定：
+
+1. 登入 Netlify Dashboard，進入本專案 (例如 `good-friday-evening-service`)。
+2. 點選上方的 **Site configuration** > 左側選單 **Environment variables**。
+3. 點擊 **Add a variable** > **Add a single variable**。
+4. 設定如下：
+   - **Key**: `NEXT_PUBLIC_GOOGLE_SCRIPT_URL`
+   - **Value**: `https://script.google.com/macros/s/您的ID/exec` (填入您的 Apps Script 網址)
+5. 點擊 **Create variable**。
+6. 回到 **Deploys** 頁面，點擊 **Trigger deploy** > **Deploy site** (重新部署才會生效)。
+
+設定完成！現在無論是在本機還是正式網站，使用者的 Email 都將會直接存入您的 Google Sheet。
