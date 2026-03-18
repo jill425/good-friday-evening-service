@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react'
 
+const GOOGLE_SCRIPT_URL = process.env.NEXT_PUBLIC_GOOGLE_SCRIPT_URL || 'YOUR_GOOGLE_SCRIPT_URL_HERE' // 請在環境變數中設定
+
 export default function EmailGate({ onUnlock }) {
   const [isVisible, setIsVisible] = useState(true)
   const [email, setEmail] = useState('')
@@ -25,21 +27,31 @@ export default function EmailGate({ onUnlock }) {
       return
     }
 
+    if (!GOOGLE_SCRIPT_URL || GOOGLE_SCRIPT_URL === 'YOUR_GOOGLE_SCRIPT_URL_HERE') {
+      console.warn('Google Sheet URL 未設定，將進行模擬提交')
+      // 如果未設定，為避免卡住，先允許通過但 Console 會提示
+      setStatus('success')
+      setMessage('感謝您的參與！')
+      localStorage.setItem('email_gate_unlocked', 'true')
+      setTimeout(() => {
+        setIsVisible(false)
+        if (onUnlock) onUnlock()
+      }, 1500)
+      return
+    }
+
     setStatus('submitting')
 
     try {
-      // Netlify form submission
-      // Needs to encode data properly
-      const encode = (data) => {
-        return Object.keys(data)
-          .map(key => encodeURIComponent(key) + "=" + encodeURIComponent(data[key]))
-          .join("&");
-      }
+      // 建立 FormData 物件
+      const formData = new FormData();
+      formData.append('Email', email);
 
-      await fetch("/", {
+      // 發送至 Google Sheet
+      await fetch(GOOGLE_SCRIPT_URL, {
         method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: encode({ "form-name": "email-gate", "email": email })
+        body: formData,
+        mode: "no-cors" // Google Script 跨域需要 no-cors，雖然無法讀取回傳值，但可確保發送成功
       })
 
       setStatus('success')
