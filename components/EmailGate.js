@@ -1,0 +1,148 @@
+'use client'
+
+import { useState, useEffect } from 'react'
+
+export default function EmailGate({ onUnlock }) {
+  const [isVisible, setIsVisible] = useState(true)
+  const [email, setEmail] = useState('')
+  const [status, setStatus] = useState('idle') // idle, submitting, success, error
+  const [message, setMessage] = useState('')
+
+  // Check localStorage on mount
+  useEffect(() => {
+    const hasSubmitted = localStorage.getItem('email_gate_unlocked')
+    if (hasSubmitted) {
+      setIsVisible(false)
+      if (onUnlock) onUnlock()
+    }
+  }, [onUnlock])
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    
+    if (!email || !email.includes('@')) {
+      setMessage('請輸入有效的 Email')
+      return
+    }
+
+    setStatus('submitting')
+
+    try {
+      // Netlify form submission
+      // Needs to encode data properly
+      const encode = (data) => {
+        return Object.keys(data)
+          .map(key => encodeURIComponent(key) + "=" + encodeURIComponent(data[key]))
+          .join("&");
+      }
+
+      await fetch("/", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: encode({ "form-name": "email-gate", "email": email })
+      })
+
+      setStatus('success')
+      setMessage('感謝您的參與！')
+      localStorage.setItem('email_gate_unlocked', 'true')
+      
+      // Wait a moment before closing
+      setTimeout(() => {
+        setIsVisible(false)
+        if (onUnlock) onUnlock()
+      }, 1500)
+
+    } catch (error) {
+      console.error('Form submission error:', error)
+      setStatus('error')
+      setMessage('發生錯誤，請稍後再試。')
+    }
+  }
+
+  if (!isVisible) return null
+
+  return (
+    <div style={{
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      width: '100vw',
+      height: '100vh',
+      backgroundColor: '#000',
+      zIndex: 9999,
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+      color: '#fff',
+      fontFamily: 'sans-serif'
+    }}>
+      <div style={{
+        maxWidth: '400px',
+        width: '90%',
+        textAlign: 'center',
+        padding: '2rem',
+        border: '1px solid #333',
+        borderRadius: '8px',
+        background: '#111'
+      }}>
+        <h2 style={{ marginBottom: '1.5rem', fontSize: '1.5rem' }}>Good Friday Evening Service</h2>
+        <p style={{ marginBottom: '2rem', color: '#888' }}>
+          請輸入您的 Email 以繼續瀏覽，我們將會在稍後推送活動訊息給您。
+        </p>
+
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          {/* Hidden input for Netlify bot field if needed, generally handled by build step via the static form, 
+              but good to have consistent naming */}
+          <input type="hidden" name="form-name" value="email-gate" />
+
+          <input
+            type="email"
+            name="email"
+            placeholder="name@example.com"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            disabled={status === 'submitting' || status === 'success'}
+            style={{
+              padding: '12px',
+              borderRadius: '4px',
+              border: '1px solid #444',
+              background: '#222',
+              color: '#fff',
+              fontSize: '1rem',
+              outline: 'none'
+            }}
+          />
+          
+          <button
+            type="submit"
+            disabled={status === 'submitting' || status === 'success'}
+            style={{
+              padding: '12px',
+              borderRadius: '4px',
+              border: 'none',
+              background: status === 'success' ? '#4CAF50' : '#fff',
+              color: status === 'success' ? '#fff' : '#000',
+              fontSize: '1rem',
+              fontWeight: 'bold',
+              cursor: status === 'submitting' ? 'wait' : 'pointer',
+              transition: 'background 0.3s'
+            }}
+          >
+            {status === 'submitting' ? '處理中...' : status === 'success' ? '成功！即將進入...' : '進入網站'}
+          </button>
+        </form>
+
+        {message && (
+          <p style={{ 
+            marginTop: '1rem', 
+            fontSize: '0.9rem', 
+            color: status === 'error' ? '#ff4d4d' : status === 'success' ? '#4CAF50' : '#ccc' 
+          }}>
+            {message}
+          </p>
+        )}
+      </div>
+    </div>
+  )
+}
