@@ -4,6 +4,7 @@ import BackgroundMusic from '../components/BackgroundMusic'
 export const metadata = {
   title: 'Good Friday Evening Service',
   description: 'Good Friday Evening Service',
+  icons: { icon: [] },
 }
 
 export default function RootLayout({ children }) {
