@@ -11,17 +11,17 @@ export default function EmailGate({ onUnlock }) {
   const [message, setMessage] = useState('')
 
   // Check localStorage on mount
-  useEffect(() => {
-    const hasSubmitted = localStorage.getItem('email_gate_unlocked')
-    if (hasSubmitted) {
-      setIsVisible(false)
-      if (onUnlock) onUnlock()
-    }
-  }, [onUnlock])
+  // useEffect(() => {
+  //   const hasSubmitted = localStorage.getItem('email_gate_unlocked')
+  //   if (hasSubmitted) {
+  //     setIsVisible(false)
+  //     if (onUnlock) onUnlock()
+  //   }
+  // }, [onUnlock])
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    
+
     if (!email || !email.includes('@')) {
       setMessage('請輸入有效的 Email')
       return
@@ -57,7 +57,7 @@ export default function EmailGate({ onUnlock }) {
       setStatus('success')
       setMessage('感謝您的參與！')
       localStorage.setItem('email_gate_unlocked', 'true')
-      
+
       // Wait a moment before closing
       setTimeout(() => {
         setIsVisible(false)
@@ -98,9 +98,15 @@ export default function EmailGate({ onUnlock }) {
         borderRadius: '8px',
         background: '#111'
       }}>
-        <h2 style={{ marginBottom: '1.5rem', fontSize: '1.5rem' }}>Good Friday Evening Service</h2>
+        <img
+          src="/under_crown_title.png"
+          alt="Under The Crown 冠冕之下"
+          style={{ width: '100%', maxWidth: '320px', marginBottom: '1.5rem', filter: 'invert(1)' }}
+        />
         <p style={{ marginBottom: '2rem', color: '#888' }}>
-          請輸入您的 Email 以繼續瀏覽，我們將會在稍後推送活動訊息給您。
+          請輸入您的 Email
+          <br />
+          與我們一同預備心，走進受難的旅程。
         </p>
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
@@ -125,7 +131,7 @@ export default function EmailGate({ onUnlock }) {
               outline: 'none'
             }}
           />
-          
+
           <button
             type="submit"
             disabled={status === 'submitting' || status === 'success'}
@@ -146,14 +152,28 @@ export default function EmailGate({ onUnlock }) {
         </form>
 
         {message && (
-          <p style={{ 
-            marginTop: '1rem', 
-            fontSize: '0.9rem', 
-            color: status === 'error' ? '#ff4d4d' : status === 'success' ? '#4CAF50' : '#ccc' 
+          <p style={{
+            marginTop: '1rem',
+            fontSize: '0.9rem',
+            color: status === 'error' ? '#ff4d4d' : status === 'success' ? '#4CAF50' : '#ccc'
           }}>
             {message}
           </p>
         )}
+
+        <p style={{
+          marginTop: '1.5rem',
+          paddingTop: '1.2rem',
+          borderTop: '1px solid #222',
+          fontSize: '0.72rem',
+          color: '#444',
+          lineHeight: '1.6',
+          letterSpacing: '0.03em',
+        }}>
+          您的 Email 僅用於本次受難復活活動，
+          <br />
+          我們重視您的隱私，不會用於其他用途。
+        </p>
       </div>
     </div>
   )

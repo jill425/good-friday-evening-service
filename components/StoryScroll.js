@@ -4,6 +4,7 @@ import { gsap } from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import { Slides } from '../data/slides'
 import ProgressBar from './ProgressBar'
+import styles from './StoryScroll.module.css'
 
 const directions = [
   { x: () => window.innerWidth * 0.8, y: '-60%', rotateY: -25, rotateX: 12 },
@@ -13,6 +14,7 @@ const directions = [
 export default function MainScroll() {
   const containerRef = useRef(null)
   const progressBarRef = useRef(null)
+  const scrollHintRef = useRef(null)
 
   useEffect(() => {
     gsap.registerPlugin(ScrollTrigger)
@@ -34,6 +36,17 @@ export default function MainScroll() {
         transformPerspective: 1000,
       })
 
+      // Make first slide visible immediately
+      const firstSlideEl = slideElements[0]
+      if (firstSlideEl) {
+        const firstType = Slides[0]?.type
+        if (firstType === 'image') {
+          gsap.set(firstSlideEl.querySelector('.zoom-image'), { scale: 1, opacity: 1, x: 0, y: 0, rotateY: 0, rotateX: 0 })
+        } else {
+          gsap.set(firstSlideEl.querySelector('.zoom-content'), { z: -100, opacity: 1, scale: 1 })
+        }
+      }
+
       const masterTl = gsap.timeline({
         scrollTrigger: {
           trigger: containerRef.current,
@@ -46,6 +59,9 @@ export default function MainScroll() {
           onUpdate: (self) => {
             if (progressBarRef.current) {
               progressBarRef.current.style.width = `${self.progress * 100}%`
+            }
+            if (scrollHintRef.current) {
+              scrollHintRef.current.style.opacity = self.progress > 0.02 ? '0' : '1'
             }
           },
         },
@@ -121,6 +137,12 @@ export default function MainScroll() {
     <>
       <ProgressBar barRef={progressBarRef} />
       <div ref={containerRef} className="main-scroll-wrapper" style={{ position: 'relative', zIndex: 1, height: '100vh' }}>
+        <div ref={scrollHintRef} className={styles.scrollHint}>
+          <span className={styles.scrollHintText}>向下滾動</span>
+          <div className={styles.chevron} />
+          <div className={styles.chevron} />
+          <div className={styles.chevron} />
+        </div>
         {Slides.map((slide, i) => (
           <section
             key={i}
