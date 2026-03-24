@@ -90,10 +90,10 @@ export const Slides = [
     content: '真正的君王\n成為眾人嘲弄的對象\n\n羞辱與痛苦交織\n耶穌依然沉默。',
   },
   { type: 'image', src: 'mock_4' },
-  // Chapter 4: 苦路
+  // Chapter 4: 走上十字架的道路
   {
     type: 'text',
-    title: '苦路',
+    title: '走上十字架的道路',
     amplify: 3,
   },
   {
@@ -117,3 +117,6 @@ export const Slides = [
     type: 'text', content: '今晚，你將看見最真實的耶穌。'
   }
 ]
+
+// 倒帶結束後顯示的最終圖片
+export const finalImage = 'final'
