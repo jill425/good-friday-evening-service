@@ -181,15 +181,15 @@ export default function MainScroll() {
     // Rewind: play images in reverse order, each from outside → center, getting faster
     // Each image progressively more desaturated (first replayed = slight, last replayed = full grayscale)
     const total = imageInfos.length
-    let dur = 0.6
-    const minDur = 0.08
+    let dur = 0.4
+    const minDur = 0.12
     let rewindIdx = 0
 
     for (let i = total - 1; i >= 0; i--) {
       const img = imgs[i]
       const dir = directions[imageInfos[i].dirIdx]
       const startX = typeof dir.x === 'function' ? dir.x() : dir.x
-      const gray = (rewindIdx + 1) / total // 0→1, progressively more grayscale
+      const gray = Math.pow((rewindIdx + 1) / total, 0.5) // 0→1, progressively more grayscale
 
       // Set to the "scattered" position (where it ended up in original animation)
       tl.set(img, {
@@ -210,7 +210,7 @@ export default function MainScroll() {
         y: 0,
         rotateY: 0,
         rotateX: 0,
-        duration: dur * 0.55,
+        duration: dur * 0.95,
         ease: 'power2.out',
       })
 
@@ -218,7 +218,7 @@ export default function MainScroll() {
       tl.to(img, {
         opacity: 0,
         scale: 0.3,
-        duration: dur * 0.45,
+        duration: dur * 0.05,
         ease: 'power2.in',
       })
 
@@ -232,7 +232,7 @@ export default function MainScroll() {
       scale: 1,
       duration: 0.4,
       ease: 'power2.inOut',
-    }, '-=0.3')
+    }, '-=0.2')
   }, [])
 
   return (
@@ -288,7 +288,7 @@ export default function MainScroll() {
                   zIndex: 10,
                   color: '#fff',
                   textAlign: 'center',
-                  maxWidth: 'min(800px, 90vw)',
+                  maxWidth: slide.amplify ? undefined : 'min(800px, 90vw)',
                   padding: 'clamp(16px, 5vw, 40px)',
                 }}
               >
@@ -311,6 +311,7 @@ export default function MainScroll() {
                   marginBottom: 'clamp(10px, 2vw, 18px)',
                   textShadow: '0 2px 10px rgba(0,0,0,0.8)',
                   lineHeight: '1.4',
+                  whiteSpace: slide.amplify ? 'nowrap' : undefined,
                 }}>
                   {slide.title}
                 </h2>
@@ -320,7 +321,7 @@ export default function MainScroll() {
                   fontWeight: '300',
                   textShadow: '0 2px 8px rgba(0,0,0,0.8)',
                   opacity: 0.9,
-                  whiteSpace: 'pre-wrap',
+                  whiteSpace: slide.amplify ? 'pre' : 'pre-wrap',
                 }}>
                   {slide.content}
                 </p>

@@ -12,7 +12,7 @@ export const Slides = [
   },
   {
     type: 'text',
-    content: '門徒四散\n\n耶穌沒有反抗\n因為祂知道\n這條路祂必須走下去\n',
+    content: '門徒四散\n耶穌沒有反抗\n因為祂知道\n這條路祂必須走下去\n',
   },
   { type: 'image', src: 'arrest_2' },
   { type: 'image', src: 'arrest_3' },
@@ -25,12 +25,11 @@ export const Slides = [
   },
   {
     type: 'text',
-    content: '耶穌被帶到宗教領袖\n與羅馬官員面前\n\n控告不斷\n卻找不出真正的罪\n\n彼拉多原想釋放祂',
+    content: '耶穌被帶到宗教領袖\n與羅馬官員面前\n\n控告不斷\n卻找不出真正的罪\n彼拉多原想釋放祂',
   },
   // { type: 'image', src: 'trial_1' },
   { type: 'image', src: 'trial_2' },
   { type: 'image', src: 'trial_6' },
-  { type: 'image', src: 'trial_4' },
   { type: 'image', src: 'trial_3' },
   { type: 'image', src: 'trial_5' },
   {
@@ -98,7 +97,7 @@ export const Slides = [
   },
   {
     type: 'text',
-    content: '他們把十字架放祂肩上\n\n祂跌倒，又被迫站起來',
+    content: '他們把十字架放祂肩上\n祂跌倒，又被迫站起來',
   },
   { type: 'image', src: 'via_1' },
   { type: 'image', src: 'via_2' },
