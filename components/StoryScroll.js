@@ -1,8 +1,8 @@
 'use client'
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useCallback } from 'react'
 import { gsap } from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
-import { Slides } from '../data/slides'
+import { Slides, finalImage } from '../data/slides'
 import ProgressBar from './ProgressBar'
 import styles from './StoryScroll.module.css'
 
@@ -11,10 +11,23 @@ const directions = [
   { x: () => -window.innerWidth * 0.8, y: '60%', rotateY: 25, rotateX: -12 },
 ]
 
+// Pre-compute image info (direction index for each image slide)
+const imageInfos = (() => {
+  let count = 0
+  return Slides.filter(s => s.type === 'image').map(s => {
+    const dirIdx = count % directions.length
+    count++
+    return { src: s.src, dirIdx }
+  })
+})()
+
 export default function MainScroll() {
   const containerRef = useRef(null)
   const progressBarRef = useRef(null)
   const scrollHintRef = useRef(null)
+  const journeyBtnRef = useRef(null)
+  const rewindRef = useRef(null)
+  const finalImgRef = useRef(null)
 
   useEffect(() => {
     gsap.registerPlugin(ScrollTrigger)
@@ -62,6 +75,14 @@ export default function MainScroll() {
             }
             if (scrollHintRef.current) {
               scrollHintRef.current.style.opacity = self.progress > 0.02 ? '0' : '1'
+            }
+            if (journeyBtnRef.current) {
+              const show = self.progress > 0.97
+              if (show) {
+                journeyBtnRef.current.classList.add(styles.journeyBtnVisible)
+              } else {
+                journeyBtnRef.current.classList.remove(styles.journeyBtnVisible)
+              }
             }
           },
         },
@@ -133,6 +154,87 @@ export default function MainScroll() {
     return () => ctx.revert()
   }, [])
 
+  const handleJourneyStart = useCallback(() => {
+    const overlay = rewindRef.current
+    if (!overlay) return
+
+    document.body.style.overflow = 'hidden'
+    overlay.style.visibility = 'visible'
+    overlay.style.pointerEvents = 'auto'
+
+    // Hide progress bar
+    if (progressBarRef.current) {
+      gsap.to(progressBarRef.current.parentElement, { opacity: 0, duration: 0.3 })
+    }
+
+    const imgs = gsap.utils.toArray(overlay.querySelectorAll('.rewind-img'))
+    const finalImg = finalImgRef.current
+
+    gsap.set(imgs, { opacity: 0, scale: 1.5, transformPerspective: 800 })
+    gsap.set(finalImg, { opacity: 0, scale: 1.05 })
+
+    const tl = gsap.timeline()
+
+    // Fade in the overlay
+    tl.to(overlay, { opacity: 1, duration: 0.6, ease: 'power2.inOut' })
+
+    // Rewind: play images in reverse order, each from outside → center, getting faster
+    // Each image progressively more desaturated (first replayed = slight, last replayed = full grayscale)
+    const total = imageInfos.length
+    let dur = 0.4
+    const minDur = 0.12
+    let rewindIdx = 0
+
+    for (let i = total - 1; i >= 0; i--) {
+      const img = imgs[i]
+      const dir = directions[imageInfos[i].dirIdx]
+      const startX = typeof dir.x === 'function' ? dir.x() : dir.x
+      const gray = Math.pow((rewindIdx + 1) / total, 0.5) // 0→1, progressively more grayscale
+
+      // Set to the "scattered" position (where it ended up in original animation)
+      tl.set(img, {
+        opacity: 0,
+        scale: 1.5,
+        x: startX,
+        y: dir.y,
+        rotateY: dir.rotateY,
+        rotateX: dir.rotateX,
+        filter: `grayscale(${gray})`,
+      })
+
+      // Fly in from outside to center
+      tl.to(img, {
+        opacity: 1,
+        scale: 1,
+        x: 0,
+        y: 0,
+        rotateY: 0,
+        rotateX: 0,
+        duration: dur * 0.95,
+        ease: 'power2.out',
+      })
+
+      // Shrink and fade
+      tl.to(img, {
+        opacity: 0,
+        scale: 0.3,
+        duration: dur * 0.05,
+        ease: 'power2.in',
+      })
+
+      dur = Math.max(minDur, dur * 0.87)
+      rewindIdx++
+    }
+
+    // Reveal final image (in full color)
+    tl.to(finalImg, {
+      opacity: 1,
+      scale: 1,
+      duration: 0.4,
+      ease: 'power2.inOut',
+    }, '-=0.2')
+  }, [])
+
   return (
     <>
       <ProgressBar barRef={progressBarRef} />
@@ -186,12 +288,15 @@ export default function MainScroll() {
                   zIndex: 10,
                   color: '#fff',
                   textAlign: 'center',
-                  maxWidth: 'min(800px, 90vw)',
+                  maxWidth: slide.amplify ? undefined : 'min(800px, 90vw)',
                   padding: 'clamp(16px, 5vw, 40px)',
                 }}
               >
+                {(() => {
+                  const amp = slide.amplify || 1
+                  return (<>
                 <p style={{
-                  fontSize: 'clamp(0.65rem, 2.5vw, 0.9rem)',
+                  fontSize: `clamp(${0.65 * amp}rem, ${2.5 * amp}vw, ${0.9 * amp}rem)`,
                   fontWeight: '400',
                   letterSpacing: '0.15em',
                   opacity: 0.6,
@@ -201,28 +306,86 @@ export default function MainScroll() {
                   {slide.subtitle}
                 </p>
                 <h2 style={{
-                  fontSize: 'clamp(1.1rem, 4vw, 1.8rem)',
+                  fontSize: `clamp(${1.1 * amp}rem, ${4 * amp}vw, ${1.8 * amp}rem)`,
                   fontWeight: '600',
                   marginBottom: 'clamp(10px, 2vw, 18px)',
                   textShadow: '0 2px 10px rgba(0,0,0,0.8)',
                   lineHeight: '1.4',
+                  whiteSpace: slide.amplify ? 'nowrap' : undefined,
                 }}>
                   {slide.title}
                 </h2>
                 <p style={{
-                  fontSize: 'clamp(0.8rem, 2.8vw, 1.1rem)',
+                  fontSize: `clamp(${0.8 * amp}rem, ${2.8 * amp}vw, ${1.1 * amp}rem)`,
                   lineHeight: '1.8',
                   fontWeight: '300',
                   textShadow: '0 2px 8px rgba(0,0,0,0.8)',
                   opacity: 0.9,
-                  whiteSpace: 'pre-wrap',
+                  whiteSpace: slide.amplify ? 'pre' : 'pre-wrap',
                 }}>
                   {slide.content}
                 </p>
+                  </>)
+                })()}
               </div>
             )}
           </section>
         ))}
+        {/* Journey start button — appears at the end */}
+        <div
+          ref={journeyBtnRef}
+          className={styles.journeyBtn}
+          onClick={handleJourneyStart}
+        >
+          旅程開始
+        </div>
+      </div>
+
+      {/* Rewind overlay — always rendered, initially hidden */}
+      <div
+        ref={rewindRef}
+        style={{
+          position: 'fixed',
+          inset: 0,
+          background: '#000',
+          zIndex: 1000,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          opacity: 0,
+          visibility: 'hidden',
+          pointerEvents: 'none',
+        }}
+      >
+        {imageInfos.map((info, i) => (
+          <img
+            key={i}
+            className="rewind-img"
+            src={`/images/${info.src}.webp`}
+            alt=""
+            style={{
+              position: 'absolute',
+              width: 'clamp(200px, 60vw, 480px)',
+              height: 'clamp(200px, 60vw, 480px)',
+              objectFit: 'cover',
+              borderRadius: '16px',
+              transformOrigin: 'center center',
+              filter: 'brightness(1.4)',
+              willChange: 'transform, opacity',
+            }}
+          />
+        ))}
+        <img
+          ref={finalImgRef}
+          src={`/images/${finalImage}.png`}
+          alt=""
+          style={{
+            position: 'absolute',
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover',
+          }}
+        />
       </div>
     </>
   )
