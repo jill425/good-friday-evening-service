@@ -31,6 +31,8 @@ export const Slides = [
   { type: 'image', src: 'trial_2' },
   { type: 'image', src: 'trial_6' },
   { type: 'image', src: 'trial_4' },
+  { type: 'image', src: 'trial_3' },
+  { type: 'image', src: 'trial_5' },
   {
     type: 'text',
     content: '「釘祂十字架！」',
@@ -45,8 +47,6 @@ export const Slides = [
     content: '「釘祂十字架！」',
     amplify: 2,
   },
-  { type: 'image', src: 'trial_3' },
-  { type: 'image', src: 'trial_5' },
   // Chapter 3: 鞭打與折磨 / 嘲笑與羞辱
   {
     type: 'text',
