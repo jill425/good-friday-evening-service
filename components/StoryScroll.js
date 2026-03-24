@@ -190,8 +190,11 @@ export default function MainScroll() {
                   padding: 'clamp(16px, 5vw, 40px)',
                 }}
               >
+                {(() => {
+                  const amp = slide.amplify || 1
+                  return (<>
                 <p style={{
-                  fontSize: 'clamp(0.65rem, 2.5vw, 0.9rem)',
+                  fontSize: `clamp(${0.65 * amp}rem, ${2.5 * amp}vw, ${0.9 * amp}rem)`,
                   fontWeight: '400',
                   letterSpacing: '0.15em',
                   opacity: 0.6,
@@ -201,7 +204,7 @@ export default function MainScroll() {
                   {slide.subtitle}
                 </p>
                 <h2 style={{
-                  fontSize: 'clamp(1.1rem, 4vw, 1.8rem)',
+                  fontSize: `clamp(${1.1 * amp}rem, ${4 * amp}vw, ${1.8 * amp}rem)`,
                   fontWeight: '600',
                   marginBottom: 'clamp(10px, 2vw, 18px)',
                   textShadow: '0 2px 10px rgba(0,0,0,0.8)',
@@ -210,7 +213,7 @@ export default function MainScroll() {
                   {slide.title}
                 </h2>
                 <p style={{
-                  fontSize: 'clamp(0.8rem, 2.8vw, 1.1rem)',
+                  fontSize: `clamp(${0.8 * amp}rem, ${2.8 * amp}vw, ${1.1 * amp}rem)`,
                   lineHeight: '1.8',
                   fontWeight: '300',
                   textShadow: '0 2px 8px rgba(0,0,0,0.8)',
@@ -219,6 +222,8 @@ export default function MainScroll() {
                 }}>
                   {slide.content}
                 </p>
+                  </>)
+                })()}
               </div>
             )}
           </section>

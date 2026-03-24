@@ -4,12 +4,12 @@ export const Slides = [
     type: 'text',
     title: '黑夜中的逮捕',
     content: '',
+    amplify: 3,
   },
   {
     type: 'text',
     content: '夜深\n耶穌剛結束禱告\n\n火把亮起\n猶大帶人前來\n以親吻背叛',
   },
-  { type: 'image', src: 'arrest_1' },
   {
     type: 'text',
     content: '門徒四散\n\n耶穌沒有反抗\n因為祂知道\n這條路祂必須走下去\n',
@@ -21,27 +21,29 @@ export const Slides = [
   {
     type: 'text',
     title: '不義的審判',
+    amplify: 3,
   },
   {
     type: 'text',
-    content: '耶穌被帶到宗教領袖\n與羅馬官員面前',
+    content: '耶穌被帶到宗教領袖\n與羅馬官員面前\n\n控告不斷\n卻找不出真正的罪\n\n彼拉多原想釋放祂',
   },
   // { type: 'image', src: 'trial_1' },
   { type: 'image', src: 'trial_2' },
   { type: 'image', src: 'trial_6' },
-
-  {
-    type: 'text',
-    content: '控告不斷\n卻找不出真正的罪\n。',
-  },
   { type: 'image', src: 'trial_4' },
   {
     type: 'text',
-    content: '彼拉多原想釋放祂',
+    content: '「釘祂十字架！」',
   },
   {
     type: 'text',
-    content: '「釘祂十字架！」\n「釘祂十字架！」\n「釘祂十字架！」',
+    content: '「釘祂十字架！」',
+    amplify: 1.5,
+  },
+  {
+    type: 'text',
+    content: '「釘祂十字架！」',
+    amplify: 2,
   },
   { type: 'image', src: 'trial_3' },
   { type: 'image', src: 'trial_5' },
@@ -49,6 +51,7 @@ export const Slides = [
   {
     type: 'text',
     title: '鞭打與折磨',
+    amplify: 3,
   },
   { type: 'image', src: 'scourge_1' },
   {
@@ -58,17 +61,18 @@ export const Slides = [
   // { type: 'image', src: 'trial_7' },
   {
     type: 'text',
-    content: '皮肉被撕裂\n鮮血順著身體流下',
+    content: '皮肉被撕裂\n鮮血順著身體流下\n祂仍然沉默',
   },
   { type: 'image', src: 'scourge_3' },
   {
     type: 'text',
-    content: '祂仍然沉默\n\n祂被欺壓，在受苦的時候卻不開口\n祂像羊羔被牽到宰殺之地\n\n又像羊在剪毛的人手下無聲\n祂也是這樣不開口',
+    content: '祂被欺壓 在受苦的時候卻不開口\n祂像羊羔被牽到宰殺之地\n又像羊在剪毛的人手下無聲\n祂也是這樣不開口',
   },
   { type: 'image', src: 'scourge_2' },
   {
     type: 'text',
     title: '被戲弄的君王',
+    amplify: 3,
   },
   {
     type: 'text',
@@ -90,6 +94,7 @@ export const Slides = [
   {
     type: 'text',
     title: '苦路',
+    amplify: 3,
   },
   {
     type: 'text',
@@ -97,8 +102,6 @@ export const Slides = [
   },
   { type: 'image', src: 'via_1' },
   { type: 'image', src: 'via_2' },
-
-  { type: 'image', src: 'via_3' },
   { type: 'image', src: 'via_4' },
   {
     type: 'text',
