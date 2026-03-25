@@ -12,8 +12,10 @@ export default function BackgroundMusic() {
     if (!audio) return;
 
     audio.volume = 0.5;
+    let journeyStarted = false;
 
     const playAudio = () => {
+      if (journeyStarted) return;
       const playPromise = audio.play();
       if (playPromise !== undefined) {
         playPromise
@@ -37,6 +39,10 @@ export default function BackgroundMusic() {
 
     // Listen for journey-start event to fade out
     const handleFadeOut = () => {
+      journeyStarted = true;
+      document.removeEventListener('click', playAudio);
+      document.removeEventListener('touchstart', playAudio);
+      document.removeEventListener('keydown', playAudio);
       gsap.to(audio, { volume: 0, duration: 4, ease: 'power2.inOut', onComplete: () => {
         audio.pause();
         setIsPlaying(false);

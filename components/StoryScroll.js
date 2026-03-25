@@ -6,6 +6,10 @@ import { Slides, finalImage } from '../data/slides'
 import ProgressBar from './ProgressBar'
 import styles from './StoryScroll.module.css'
 
+// ── Heat haze config ──
+const HEAT_HAZE_ENABLED = true   // true = 開啟空氣浮動特效, false = 關閉
+const HEAT_HAZE_START_Y = 40     // 從圖片高度的幾 % 開始有特效 (0 = 頂部, 100 = 底部)
+
 const directions = [
   { x: () => window.innerWidth * 0.8, y: '-60%', rotateY: -25, rotateX: 12 },
   { x: () => -window.innerWidth * 0.8, y: '60%', rotateY: 25, rotateX: -12 },
@@ -29,12 +33,17 @@ export default function MainScroll() {
   const rewindRef = useRef(null)
   const finalImgRef = useRef(null)
   const entranceTextRef = useRef(null)
+  const turbRef = useRef(null)
+  const hazeRafRef = useRef(null)
 
   useEffect(() => {
     gsap.registerPlugin(ScrollTrigger)
 
     const ctx = gsap.context(() => {
       const slideElements = gsap.utils.toArray('.zoom-container')
+
+      // Global text scale multiplier — increase to make text larger during the "stay" phase
+      const textScale = 1.7
 
       gsap.set('.zoom-image', {
         scale: 0.2, x: 0, y: 0,
@@ -46,7 +55,7 @@ export default function MainScroll() {
       gsap.set('.zoom-content', {
         z: -1000,
         opacity: 0,
-        scale: 0.5,
+        scale: 0.5 * textScale,
         transformPerspective: 1000,
       })
 
@@ -57,7 +66,7 @@ export default function MainScroll() {
         if (firstType === 'image') {
           gsap.set(firstSlideEl.querySelector('.zoom-image'), { scale: 1, opacity: 1, x: 0, y: 0, rotateY: 0, rotateX: 0 })
         } else {
-          gsap.set(firstSlideEl.querySelector('.zoom-content'), { z: -100, opacity: 1, scale: 1 })
+          gsap.set(firstSlideEl.querySelector('.zoom-content'), { z: -100, opacity: 1, scale: 1 * textScale })
         }
       }
 
@@ -129,25 +138,25 @@ export default function MainScroll() {
           if (!content) return
 
           const isLast = i === slideElements.length - 1
+          const isTitleOnly = slide.title && !slide.content
+          const pauseDur = isTitleOnly ? 1 : 0 // extra timeline duration for title slides
+
           masterTl.to(content, {
-            z: -100, opacity: 1, scale: 1,
+            z: -100, opacity: 1, scale: 1 * textScale,
             ease: 'power2.out', duration: 0.4,
           }, label)
           if (!isLast) {
             masterTl.to(content, {
-              z: 1000, opacity: 0, scale: 1.5,
+              z: 1000, opacity: 0, scale: 1.5 * textScale,
               ease: 'power2.in', duration: 0.4,
-            }, `${label}+=0.4`)
-          } else {
-            masterTl.to(content, {
-              z: 100, opacity: 1, scale: 1.5,
-              ease: 'power2.in', duration: 0.4,
-            })
+            }, `${label}+=${0.4 + pauseDur}`)
           }
         }
 
+        const isTitleSlide = slide.title && !slide.content
+        const slideTotalDur = isTitleSlide ? 0.65 + 2 : 0.65
         if (i < slideElements.length - 1) {
-          masterTl.to(el, { opacity: 0, duration: 0.12 }, `${label}+=0.65`)
+          masterTl.to(el, { opacity: 0, duration: 0.12 }, `${label}+=${slideTotalDur}`)
         }
       })
     }, containerRef)
@@ -173,19 +182,21 @@ export default function MainScroll() {
 
     // Fade out journey BGM 3.31s before the track ends, then fade back in on restart
     let bgmFading = false
+    let bgmTween = null
     const onTimeUpdate = () => {
       if (!bgmFading && journeyBgm.duration && journeyBgm.currentTime >= journeyBgm.duration - 3.31) {
         bgmFading = true
-        gsap.to(journeyBgm, { volume: 0, duration: 3.31, ease: 'power2.inOut' })
+        bgmTween = gsap.to(journeyBgm, { volume: 0, duration: 3.31, ease: 'power2.inOut' })
       }
     }
     journeyBgm.addEventListener('timeupdate', onTimeUpdate)
     journeyBgm.addEventListener('ended', () => {
+      if (bgmTween) bgmTween.kill()
       bgmFading = false
       journeyBgm.currentTime = 0
       journeyBgm.volume = 0
       journeyBgm.play().catch(() => {})
-      gsap.to(journeyBgm, { volume: 0.3, duration: 3, ease: 'power2.inOut' })
+      bgmTween = gsap.to(journeyBgm, { volume: 0.3, duration: 3, ease: 'power2.inOut' })
     })
 
     // Prepare whoosh sound pool (reuse audio elements)
@@ -281,6 +292,21 @@ export default function MainScroll() {
       scale: 1,
       duration: 0.4,
       ease: 'power2.inOut',
+      onComplete: () => {
+        if (!HEAT_HAZE_ENABLED) return
+        // Start heat haze animation
+        const turbNode = turbRef.current
+        if (!turbNode) return
+        let t = 0
+        const animate = () => {
+          t += 0.003
+          const bfX = 0.005 + Math.sin(t) * 0.003
+          const bfY = 0.01 + Math.cos(t * 0.7) * 0.005
+          turbNode.setAttribute('baseFrequency', `${bfX} ${bfY}`)
+          hazeRafRef.current = requestAnimationFrame(animate)
+        }
+        hazeRafRef.current = requestAnimationFrame(animate)
+      },
     }, '-=0.2')
 
     // Show entrance text after delay
@@ -371,6 +397,7 @@ export default function MainScroll() {
                   textShadow: '0 2px 10px rgba(0,0,0,0.8)',
                   lineHeight: '1.4',
                   whiteSpace: slide.amplify ? 'nowrap' : undefined,
+                  color: slide.title && !slide.content ? 'rgba(255,255,255,0.55)' : undefined,
                 }}>
                   {slide.title}
                 </h2>
@@ -438,17 +465,66 @@ export default function MainScroll() {
             }}
           />
         ))}
-        <img
+        {HEAT_HAZE_ENABLED && (
+          <svg style={{ position: 'absolute', width: 0, height: 0 }}>
+            <defs>
+              <filter id="heatHaze">
+                <feTurbulence
+                  ref={turbRef}
+                  type="fractalNoise"
+                  baseFrequency="0.005 0.01"
+                  numOctaves="3"
+                  seed="2"
+                  result="noise"
+                />
+                <feDisplacementMap
+                  in="SourceGraphic"
+                  in2="noise"
+                  scale="18"
+                  xChannelSelector="R"
+                  yChannelSelector="G"
+                />
+              </filter>
+            </defs>
+          </svg>
+        )}
+        {/* Final image wrapper — contains sharp base + haze overlay */}
+        <div
           ref={finalImgRef}
-          src={`/images/${finalImage}.png`}
-          alt=""
           style={{
             position: 'absolute',
             width: '100%',
             height: '100%',
-            objectFit: 'cover',
           }}
-        />
+        >
+          {/* Sharp base layer */}
+          <img
+            src={`/images/${finalImage}.png`}
+            alt=""
+            style={{
+              position: 'absolute',
+              width: '100%',
+              height: '100%',
+              objectFit: 'cover',
+            }}
+          />
+          {/* Haze overlay — clipped to bottom portion only */}
+          {HEAT_HAZE_ENABLED && (
+            <img
+              src={`/images/${finalImage}.png`}
+              alt=""
+              style={{
+                position: 'absolute',
+                width: '100%',
+                height: '100%',
+                objectFit: 'cover',
+                filter: 'url(#heatHaze)',
+                clipPath: `inset(${HEAT_HAZE_START_Y}% 0 0 0)`,
+                WebkitClipPath: `inset(${HEAT_HAZE_START_Y}% 0 0 0)`,
+              }}
+            />
+          )}
+        </div>
         <div
           ref={entranceTextRef}
           style={{

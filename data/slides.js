@@ -4,7 +4,7 @@ export const Slides = [
     type: 'text',
     title: '黑夜中的逮捕',
     content: '',
-    amplify: 3,
+    amplify: 1.7,
   },
   {
     type: 'text',
@@ -21,7 +21,7 @@ export const Slides = [
   {
     type: 'text',
     title: '不義的審判',
-    amplify: 3,
+    amplify: 1.7,
   },
   {
     type: 'text',
@@ -39,12 +39,12 @@ export const Slides = [
   {
     type: 'text',
     content: '「釘祂十字架！」',
-    amplify: 1.8,
+    amplify: 1.7,
   },
   {
     type: 'text',
     content: '「釘祂十字架！」',
-    amplify: 3,
+    amplify: 1.7,
   },
   {
     type: 'text',
@@ -54,7 +54,7 @@ export const Slides = [
   {
     type: 'text',
     title: '鞭打與折磨',
-    amplify: 3,
+    amplify: 1.7,
   },
   {
     type: 'text',
@@ -74,7 +74,7 @@ export const Slides = [
   {
     type: 'text',
     title: '被戲弄的君王',
-    amplify: 3,
+    amplify: 1.7,
   },
   {
     type: 'text',
@@ -96,7 +96,7 @@ export const Slides = [
   {
     type: 'text',
     title: '走上十字架的道路',
-    amplify: 3,
+    amplify: 1.7,
   },
   {
     type: 'text',
@@ -115,7 +115,7 @@ export const Slides = [
     type: 'text', content: '祂在苦路上承受的重量、\n祂心裡的掙扎、疑問、害怕與順服，\n都將一一展現在你面前。'
   },
   {
-    type: 'text', content: '今晚，你將看見最真實的耶穌。'
+    type: 'text', content: '今晚\n你將看見最真實的耶穌'
   }
 ]
 
