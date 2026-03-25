@@ -351,7 +351,9 @@ export default function MainScroll() {
           className={styles.journeyBtn}
           onClick={handleJourneyStart}
         >
+          <span className={styles.arrowLeft}>›</span>
           旅程開始
+          <span className={styles.arrowRight}>‹</span>
         </div>
       </div>
 
