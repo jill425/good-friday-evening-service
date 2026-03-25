@@ -63,6 +63,31 @@
   z-index: 100;
   user-select: none;
   text-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
+  display: flex;
+  align-items: center;
+  gap: 0.6em;
+}
+
+.arrowLeft,
+.arrowRight {
+  display: inline-block;
+  font-size: 1.4em;
+  opacity: 0.6;
+  animation: arrowBounceLeft 1.2s ease-in-out infinite;
+}
+
+.arrowRight {
+  animation-name: arrowBounceRight;
+}
+
+@keyframes arrowBounceLeft {
+  0%, 100% { transform: translateX(0); opacity: 0.4; }
+  50% { transform: translateX(-6px); opacity: 0.9; }
+}
+
+@keyframes arrowBounceRight {
+  0%, 100% { transform: translateX(0); opacity: 0.4; }
+  50% { transform: translateX(6px); opacity: 0.9; }
 }
 
 .journeyBtnVisible {

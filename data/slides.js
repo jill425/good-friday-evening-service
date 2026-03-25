@@ -4,7 +4,7 @@ export const Slides = [
     type: 'text',
     title: '黑夜中的逮捕',
     content: '',
-    amplify: 3,
+    amplify: 1.7,
   },
   {
     type: 'text',
@@ -21,7 +21,7 @@ export const Slides = [
   {
     type: 'text',
     title: '不義的審判',
-    amplify: 3,
+    amplify: 1.7,
   },
   {
     type: 'text',
@@ -39,20 +39,23 @@ export const Slides = [
   {
     type: 'text',
     content: '「釘祂十字架！」',
-    amplify: 1.5,
+    amplify: 1.7,
   },
   {
     type: 'text',
     content: '「釘祂十字架！」',
-    amplify: 2,
+    amplify: 1.7,
+  },
+  {
+    type: 'text',
+    content: '在喧囂與憤怒之中，義者被審判。',
   },
   // Chapter 3: 鞭打與折磨 / 嘲笑與羞辱
   {
     type: 'text',
     title: '鞭打與折磨',
-    amplify: 3,
+    amplify: 1.7,
   },
-  { type: 'image', src: 'scourge_1' },
   {
     type: 'text',
     content: '鞭子一次又一次落下',
@@ -71,7 +74,7 @@ export const Slides = [
   {
     type: 'text',
     title: '被戲弄的君王',
-    amplify: 3,
+    amplify: 1.7,
   },
   {
     type: 'text',
@@ -86,20 +89,19 @@ export const Slides = [
   { type: 'image', src: 'mock_3' },
   {
     type: 'text',
-    content: '真正的君王\n成為眾人嘲弄的對象\n\n羞辱與痛苦交織\n耶穌依然沉默。',
+    content: '真正的君王\n成為眾人嘲弄的對象\n\n羞辱與痛苦交織\n耶穌依然沉默',
   },
   { type: 'image', src: 'mock_4' },
   // Chapter 4: 走上十字架的道路
   {
     type: 'text',
     title: '走上十字架的道路',
-    amplify: 3,
+    amplify: 1.7,
   },
   {
     type: 'text',
     content: '他們把十字架放祂肩上\n祂跌倒，又被迫站起來',
   },
-  { type: 'image', src: 'via_1' },
   { type: 'image', src: 'via_2' },
   { type: 'image', src: 'via_4' },
   {
@@ -113,7 +115,7 @@ export const Slides = [
     type: 'text', content: '祂在苦路上承受的重量、\n祂心裡的掙扎、疑問、害怕與順服，\n都將一一展現在你面前。'
   },
   {
-    type: 'text', content: '今晚，你將看見最真實的耶穌。'
+    type: 'text', content: '今晚\n你將看見最真實的耶穌'
   }
 ]
 

@@ -5,19 +5,17 @@ import { useState, useEffect } from 'react'
 const GOOGLE_SCRIPT_URL = process.env.NEXT_PUBLIC_GOOGLE_SCRIPT_URL || 'YOUR_GOOGLE_SCRIPT_URL_HERE' // 請在環境變數中設定
 
 export default function EmailGate({ onUnlock }) {
-  const [isVisible, setIsVisible] = useState(true)
+  const isDev = process.env.NODE_ENV === 'development'
+  const [isVisible, setIsVisible] = useState(!isDev)
   const [email, setEmail] = useState('')
   const [status, setStatus] = useState('idle') // idle, submitting, success, error
   const [message, setMessage] = useState('')
 
-  // Check localStorage on mount
-  // useEffect(() => {
-  //   const hasSubmitted = localStorage.getItem('email_gate_unlocked')
-  //   if (hasSubmitted) {
-  //     setIsVisible(false)
-  //     if (onUnlock) onUnlock()
-  //   }
-  // }, [onUnlock])
+  useEffect(() => {
+    if (isDev) {
+      if (onUnlock) onUnlock()
+    }
+  }, [isDev, onUnlock])
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -36,7 +34,7 @@ export default function EmailGate({ onUnlock }) {
       setTimeout(() => {
         setIsVisible(false)
         if (onUnlock) onUnlock()
-      }, 1500)
+      }, 500)
       return
     }
 
