@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import { gsap } from 'gsap';
 
 export default function BackgroundMusic() {
   const audioRef = useRef(null);
@@ -13,39 +14,41 @@ export default function BackgroundMusic() {
     audio.volume = 0.5;
 
     const playAudio = () => {
-      // Modern browsers require a user interaction (click, tap) to play audio.
-      // Scrolling is often NOT considered a deliberate interaction for audio.
       const playPromise = audio.play();
       if (playPromise !== undefined) {
         playPromise
           .then(() => {
             setIsPlaying(true);
-            // Remove listeners once playing starts
             document.removeEventListener('click', playAudio);
             document.removeEventListener('touchstart', playAudio);
             document.removeEventListener('keydown', playAudio);
           })
           .catch((error) => {
-            // Auto-play was prevented
             console.log("Autoplay prevented:", error);
             setIsPlaying(false);
           });
       }
     };
 
-    // Try to play immediately (often blocked)
     playAudio();
-
-    // Add listeners for valid user interactions
     document.addEventListener('click', playAudio);
-    // touchstart is usually enough on mobile to trigger "user gesture"
-    document.addEventListener('touchstart', playAudio); 
+    document.addEventListener('touchstart', playAudio);
     document.addEventListener('keydown', playAudio);
+
+    // Listen for journey-start event to fade out
+    const handleFadeOut = () => {
+      gsap.to(audio, { volume: 0, duration: 4, ease: 'power2.inOut', onComplete: () => {
+        audio.pause();
+        setIsPlaying(false);
+      }});
+    };
+    window.addEventListener('journey-start', handleFadeOut);
 
     return () => {
       document.removeEventListener('click', playAudio);
       document.removeEventListener('touchstart', playAudio);
       document.removeEventListener('keydown', playAudio);
+      window.removeEventListener('journey-start', handleFadeOut);
     };
   }, []);
 

@@ -163,6 +163,46 @@ export default function MainScroll() {
     overlay.style.visibility = 'visible'
     overlay.style.pointerEvents = 'auto'
 
+    // Fade out background music, start journey BGM
+    window.dispatchEvent(new Event('journey-start'))
+    const journeyBgm = new Audio('/sorroww.m4a')
+    journeyBgm.loop = false
+    journeyBgm.volume = 0
+    journeyBgm.play().catch(() => {})
+    gsap.to(journeyBgm, { volume: 0.3, duration: 4, ease: 'power2.inOut' })
+
+    // Fade out journey BGM 3.31s before the track ends, then fade back in on restart
+    let bgmFading = false
+    const onTimeUpdate = () => {
+      if (!bgmFading && journeyBgm.duration && journeyBgm.currentTime >= journeyBgm.duration - 3.31) {
+        bgmFading = true
+        gsap.to(journeyBgm, { volume: 0, duration: 3.31, ease: 'power2.inOut' })
+      }
+    }
+    journeyBgm.addEventListener('timeupdate', onTimeUpdate)
+    journeyBgm.addEventListener('ended', () => {
+      bgmFading = false
+      journeyBgm.currentTime = 0
+      journeyBgm.volume = 0
+      journeyBgm.play().catch(() => {})
+      gsap.to(journeyBgm, { volume: 0.3, duration: 3, ease: 'power2.inOut' })
+    })
+
+    // Prepare whoosh sound pool (reuse audio elements)
+    const whooshPool = Array.from({ length: 3 }, () => {
+      const a = new Audio('/wooshh.m4a')
+      a.volume = 0.15
+      return a
+    })
+    let whooshIdx = 0
+    const playWhoosh = (vol) => {
+      const w = whooshPool[whooshIdx % whooshPool.length]
+      w.volume = Math.min(1, vol)
+      w.currentTime = 0
+      w.play().catch(() => {})
+      whooshIdx++
+    }
+
     // Hide progress bar
     if (progressBarRef.current) {
       gsap.to(progressBarRef.current.parentElement, { opacity: 0, duration: 0.3 })
@@ -183,8 +223,8 @@ export default function MainScroll() {
     tl.to(overlay, { opacity: 1, duration: 0.6, ease: 'power2.inOut' })
 
     // Rewind: play images in reverse order, each from outside → center, getting faster
-    // Each image progressively more desaturated (first replayed = slight, last replayed = full grayscale)
     const total = imageInfos.length
+    const maxDriftY = -20
     let dur = 0.4
     const minDur = 0.12
     let rewindIdx = 0
@@ -193,9 +233,13 @@ export default function MainScroll() {
       const img = imgs[i]
       const dir = directions[imageInfos[i].dirIdx]
       const startX = typeof dir.x === 'function' ? dir.x() : dir.x
-      const gray = Math.pow((rewindIdx + 1) / total, 0.5) // 0→1, progressively more grayscale
+      const progress = (rewindIdx + 1) / total
+      const gray = Math.pow(progress, 0.5)
+      const driftY = maxDriftY * Math.pow(progress, 2)
+      const driftYpx = (driftY / 100) * window.innerHeight
+      const whooshVol = 0.2 + 0.6 * progress // louder as it speeds up
 
-      // Set to the "scattered" position (where it ended up in original animation)
+      // Set to scattered position + play whoosh
       tl.set(img, {
         opacity: 0,
         scale: 1.5,
@@ -204,14 +248,15 @@ export default function MainScroll() {
         rotateY: dir.rotateY,
         rotateX: dir.rotateX,
         filter: `grayscale(${gray})`,
+        onComplete: () => playWhoosh(whooshVol),
       })
 
-      // Fly in from outside to center
+      // Fly in from outside to converge point
       tl.to(img, {
         opacity: 1,
         scale: 1,
         x: 0,
-        y: 0,
+        y: driftYpx,
         rotateY: 0,
         rotateX: 0,
         duration: dur * 0.95,
@@ -230,7 +275,7 @@ export default function MainScroll() {
       rewindIdx++
     }
 
-    // Reveal final image (in full color)
+    // Reveal final image
     tl.to(finalImg, {
       opacity: 1,
       scale: 1,
@@ -238,7 +283,7 @@ export default function MainScroll() {
       ease: 'power2.inOut',
     }, '-=0.2')
 
-    // Show entrance text after 2s delay
+    // Show entrance text after delay
     tl.to(entranceText, {
       opacity: 1,
       y: 0,
@@ -388,6 +433,8 @@ export default function MainScroll() {
               transformOrigin: 'center center',
               filter: 'brightness(1.4)',
               willChange: 'transform, opacity',
+              maskImage: 'radial-gradient(ellipse 70% 50% at center, black 20%, transparent 100%)',
+              WebkitMaskImage: 'radial-gradient(ellipse 80% 50% at center, black 70%, transparent 100%)',
             }}
           />
         ))}
