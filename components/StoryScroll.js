@@ -149,6 +149,12 @@ export default function MainScroll() {
               z: 1000, opacity: 0, scale: 1.5 * textScale,
               ease: 'power2.in', duration: 0.4,
             }, `${label}+=${0.4 + pauseDur}`)
+          } else {
+            // Keep last slide visible with extra dwell time so journey button can appear
+            masterTl.to(content, {
+              z: -100, opacity: 1, scale: 1 * textScale,
+              duration: 2,
+            }, `${label}+=0.4`)
           }
         }
 
