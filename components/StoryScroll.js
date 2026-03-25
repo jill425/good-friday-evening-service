@@ -34,6 +34,24 @@ export default function MainScroll() {
   const finalImgRef = useRef(null)
   const entranceTextRef = useRef(null)
   const hazeOverlayRef = useRef(null)
+  const journeyBgmRef = useRef(null)
+  const whooshPoolRef = useRef(null)
+
+  // Preload audio files on mount so they're ready when needed
+  useEffect(() => {
+    const bgm = new Audio('/sorroww.m4a')
+    bgm.preload = 'auto'
+    bgm.volume = 0
+    journeyBgmRef.current = bgm
+
+    const pool = Array.from({ length: 3 }, () => {
+      const a = new Audio('/wooshh.m4a')
+      a.preload = 'auto'
+      a.volume = 0.15
+      return a
+    })
+    whooshPoolRef.current = pool
+  }, [])
 
   useEffect(() => {
     gsap.registerPlugin(ScrollTrigger)
@@ -179,7 +197,7 @@ export default function MainScroll() {
 
     // Fade out background music, start journey BGM
     window.dispatchEvent(new Event('journey-start'))
-    const journeyBgm = new Audio('/sorroww.m4a')
+    const journeyBgm = journeyBgmRef.current
     journeyBgm.loop = false
     journeyBgm.volume = 0
     journeyBgm.play().catch(() => {})
@@ -204,12 +222,8 @@ export default function MainScroll() {
       bgmTween = gsap.to(journeyBgm, { volume: 0.3, duration: 3, ease: 'power2.inOut' })
     })
 
-    // Prepare whoosh sound pool (reuse audio elements)
-    const whooshPool = Array.from({ length: 3 }, () => {
-      const a = new Audio('/wooshh.m4a')
-      a.volume = 0.15
-      return a
-    })
+    // Use preloaded whoosh sound pool
+    const whooshPool = whooshPoolRef.current
     let whooshIdx = 0
     const playWhoosh = (vol) => {
       const w = whooshPool[whooshIdx % whooshPool.length]

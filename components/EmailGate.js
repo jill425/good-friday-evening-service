@@ -17,6 +17,32 @@ export default function EmailGate({ onUnlock }) {
     }
   }, [isDev, onUnlock])
 
+  // Preload audio files — shared promise so it only runs once
+  const audioReadyRef = { current: null }
+  const ensureAudioPreloaded = () => {
+    if (audioReadyRef.current) return audioReadyRef.current
+    const files = ['/sorroww.m4a', '/wooshh.m4a', '/cello-circle.m4a']
+    audioReadyRef.current = Promise.all(files.map(src => new Promise((resolve) => {
+      const a = new Audio()
+      a.preload = 'auto'
+      a.addEventListener('canplaythrough', () => resolve(), { once: true })
+      a.addEventListener('error', () => resolve(), { once: true })
+      a.src = src
+      setTimeout(resolve, 8000)
+    })))
+    return audioReadyRef.current
+  }
+
+  // Start preloading as soon as component mounts
+  useEffect(() => {
+    ensureAudioPreloaded()
+  }, [])
+
+  // Also preload on input focus as a fallback
+  const handleInputFocus = () => {
+    ensureAudioPreloaded()
+  }
+
   const handleSubmit = async (e) => {
     e.preventDefault()
 
@@ -31,10 +57,10 @@ export default function EmailGate({ onUnlock }) {
       setStatus('success')
       setMessage('感謝您的參與！')
       localStorage.setItem('email_gate_unlocked', 'true')
-      setTimeout(() => {
+      ensureAudioPreloaded().then(() => {
         setIsVisible(false)
         if (onUnlock) onUnlock()
-      }, 500)
+      })
       return
     }
 
@@ -56,11 +82,14 @@ export default function EmailGate({ onUnlock }) {
       setMessage('感謝您的參與！')
       localStorage.setItem('email_gate_unlocked', 'true')
 
-      // Wait a moment before closing
-      setTimeout(() => {
-        setIsVisible(false)
-        if (onUnlock) onUnlock()
-      }, 1500)
+      // Preload audio files before entering — wait at least 1.5s for UX
+      const [,] = await Promise.all([
+        ensureAudioPreloaded(),
+        new Promise(r => setTimeout(r, 1500)),
+      ])
+
+      setIsVisible(false)
+      if (onUnlock) onUnlock()
 
     } catch (error) {
       console.error('Form submission error:', error)
@@ -118,6 +147,7 @@ export default function EmailGate({ onUnlock }) {
             placeholder="name@example.com"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
+            onFocus={handleInputFocus}
             disabled={status === 'submitting' || status === 'success'}
             style={{
               padding: '12px',
