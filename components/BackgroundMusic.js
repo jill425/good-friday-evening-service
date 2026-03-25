@@ -12,7 +12,30 @@ export default function BackgroundMusic() {
     if (!audio) return;
 
     audio.volume = 0.5;
+    audio.loop = false; // manually loop with fade
     let journeyStarted = false;
+    let bgmFading = false;
+    let bgmTween = null;
+    const targetVol = 0.5;
+
+    const onTimeUpdate = () => {
+      if (journeyStarted) return;
+      if (!bgmFading && audio.duration && audio.currentTime >= audio.duration - 2) {
+        bgmFading = true;
+        bgmTween = gsap.to(audio, { volume: 0, duration: 2, ease: 'power2.inOut' });
+      }
+    };
+    const onEnded = () => {
+      if (journeyStarted) return;
+      if (bgmTween) bgmTween.kill();
+      bgmFading = false;
+      audio.currentTime = 0;
+      audio.volume = 0;
+      audio.play().catch(() => {});
+      bgmTween = gsap.to(audio, { volume: targetVol, duration: 2, ease: 'power2.inOut' });
+    };
+    audio.addEventListener('timeupdate', onTimeUpdate);
+    audio.addEventListener('ended', onEnded);
 
     const playAudio = () => {
       if (journeyStarted) return;
@@ -55,6 +78,8 @@ export default function BackgroundMusic() {
       document.removeEventListener('touchstart', playAudio);
       document.removeEventListener('keydown', playAudio);
       window.removeEventListener('journey-start', handleFadeOut);
+      audio.removeEventListener('timeupdate', onTimeUpdate);
+      audio.removeEventListener('ended', onEnded);
     };
   }, []);
 
@@ -71,7 +96,7 @@ export default function BackgroundMusic() {
 
   return (
     <div className="fixed bottom-4 right-4 z-50">
-      <audio ref={audioRef} loop preload="auto">
+      <audio ref={audioRef} preload="auto">
         <source src="/cello-circle.m4a" type="audio/mp4" />
         Your browser does not support the audio element.
       </audio>

@@ -89,7 +89,7 @@ export const Slides = [
   { type: 'image', src: 'mock_3' },
   {
     type: 'text',
-    content: '真正的君王\n成為眾人嘲弄的對象\n\n羞辱與痛苦交織\n耶穌依然沉默。',
+    content: '真正的君王\n成為眾人嘲弄的對象\n\n羞辱與痛苦交織\n耶穌依然沉默',
   },
   { type: 'image', src: 'mock_4' },
   // Chapter 4: 走上十字架的道路
