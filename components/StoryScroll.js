@@ -7,7 +7,7 @@ import ProgressBar from './ProgressBar'
 import styles from './StoryScroll.module.css'
 
 // ── Heat haze config ──
-const HEAT_HAZE_ENABLED = true   // true = 開啟空氣浮動特效, false = 關閉
+const HEAT_HAZE_ENABLED = false   // true = 開啟空氣浮動特效, false = 關閉
 const HEAT_HAZE_START_Y = 40     // 從圖片高度的幾 % 開始有特效 (0 = 頂部, 100 = 底部)
 
 const directions = [
@@ -33,8 +33,7 @@ export default function MainScroll() {
   const rewindRef = useRef(null)
   const finalImgRef = useRef(null)
   const entranceTextRef = useRef(null)
-  const turbRef = useRef(null)
-  const hazeRafRef = useRef(null)
+  const hazeOverlayRef = useRef(null)
 
   useEffect(() => {
     gsap.registerPlugin(ScrollTrigger)
@@ -154,7 +153,7 @@ export default function MainScroll() {
         }
 
         const isTitleSlide = slide.title && !slide.content
-        const slideTotalDur = isTitleSlide ? 0.65 + 2 : 0.65
+        const slideTotalDur = isTitleSlide ? 0.4 + 1 + 0.4 : 0.65
         if (i < slideElements.length - 1) {
           masterTl.to(el, { opacity: 0, duration: 0.12 }, `${label}+=${slideTotalDur}`)
         }
@@ -294,18 +293,9 @@ export default function MainScroll() {
       ease: 'power2.inOut',
       onComplete: () => {
         if (!HEAT_HAZE_ENABLED) return
-        // Start heat haze animation
-        const turbNode = turbRef.current
-        if (!turbNode) return
-        let t = 0
-        const animate = () => {
-          t += 0.003
-          const bfX = 0.005 + Math.sin(t) * 0.003
-          const bfY = 0.01 + Math.cos(t * 0.7) * 0.005
-          turbNode.setAttribute('baseFrequency', `${bfX} ${bfY}`)
-          hazeRafRef.current = requestAnimationFrame(animate)
-        }
-        hazeRafRef.current = requestAnimationFrame(animate)
+        // Activate CSS heat haze animation
+        const hazeEl = hazeOverlayRef.current
+        if (hazeEl) hazeEl.classList.add(styles.hazeActive)
       },
     }, '-=0.2')
 
@@ -465,29 +455,6 @@ export default function MainScroll() {
             }}
           />
         ))}
-        {HEAT_HAZE_ENABLED && (
-          <svg style={{ position: 'absolute', width: 0, height: 0 }}>
-            <defs>
-              <filter id="heatHaze">
-                <feTurbulence
-                  ref={turbRef}
-                  type="fractalNoise"
-                  baseFrequency="0.005 0.01"
-                  numOctaves="3"
-                  seed="2"
-                  result="noise"
-                />
-                <feDisplacementMap
-                  in="SourceGraphic"
-                  in2="noise"
-                  scale="18"
-                  xChannelSelector="R"
-                  yChannelSelector="G"
-                />
-              </filter>
-            </defs>
-          </svg>
-        )}
         {/* Final image wrapper — contains sharp base + haze overlay */}
         <div
           ref={finalImgRef}
@@ -508,19 +475,13 @@ export default function MainScroll() {
               objectFit: 'cover',
             }}
           />
-          {/* Haze overlay — clipped to bottom portion only */}
+          {/* CSS heat haze overlay — clipped to bottom portion */}
           {HEAT_HAZE_ENABLED && (
-            <img
-              src={`/images/${finalImage}.png`}
-              alt=""
+            <div
+              ref={hazeOverlayRef}
+              className={styles.hazeOverlay}
               style={{
-                position: 'absolute',
-                width: '100%',
-                height: '100%',
-                objectFit: 'cover',
-                filter: 'url(#heatHaze)',
-                clipPath: `inset(${HEAT_HAZE_START_Y}% 0 0 0)`,
-                WebkitClipPath: `inset(${HEAT_HAZE_START_Y}% 0 0 0)`,
+                top: `${HEAT_HAZE_START_Y}%`,
               }}
             />
           )}
