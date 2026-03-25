@@ -39,12 +39,16 @@ export const Slides = [
   {
     type: 'text',
     content: '「釘祂十字架！」',
-    amplify: 1.5,
+    amplify: 1.8,
   },
   {
     type: 'text',
     content: '「釘祂十字架！」',
-    amplify: 2,
+    amplify: 3,
+  },
+  {
+    type: 'text',
+    content: '在喧囂與憤怒之中，義者被審判。',
   },
   // Chapter 3: 鞭打與折磨 / 嘲笑與羞辱
   {
@@ -52,7 +56,6 @@ export const Slides = [
     title: '鞭打與折磨',
     amplify: 3,
   },
-  { type: 'image', src: 'scourge_1' },
   {
     type: 'text',
     content: '鞭子一次又一次落下',
@@ -99,7 +102,6 @@ export const Slides = [
     type: 'text',
     content: '他們把十字架放祂肩上\n祂跌倒，又被迫站起來',
   },
-  { type: 'image', src: 'via_1' },
   { type: 'image', src: 'via_2' },
   { type: 'image', src: 'via_4' },
   {

@@ -28,6 +28,7 @@ export default function MainScroll() {
   const journeyBtnRef = useRef(null)
   const rewindRef = useRef(null)
   const finalImgRef = useRef(null)
+  const entranceTextRef = useRef(null)
 
   useEffect(() => {
     gsap.registerPlugin(ScrollTrigger)
@@ -173,6 +174,9 @@ export default function MainScroll() {
     gsap.set(imgs, { opacity: 0, scale: 1.5, transformPerspective: 800 })
     gsap.set(finalImg, { opacity: 0, scale: 1.05 })
 
+    const entranceText = entranceTextRef.current
+    gsap.set(entranceText, { opacity: 0, y: 20 })
+
     const tl = gsap.timeline()
 
     // Fade in the overlay
@@ -233,6 +237,14 @@ export default function MainScroll() {
       duration: 0.4,
       ease: 'power2.inOut',
     }, '-=0.2')
+
+    // Show entrance text after 2s delay
+    tl.to(entranceText, {
+      opacity: 1,
+      y: 0,
+      duration: 0.8,
+      ease: 'power2.out',
+    }, '+=1')
   }, [])
 
   return (
@@ -386,6 +398,24 @@ export default function MainScroll() {
             objectFit: 'cover',
           }}
         />
+        <div
+          ref={entranceTextRef}
+          style={{
+            position: 'absolute',
+            bottom: '3rem',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            color: 'rgba(255, 255, 255, 0.85)',
+            fontSize: 'clamp(0.9rem, 2.5vw, 1.2rem)',
+            letterSpacing: '0.3em',
+            textShadow: '0 2px 10px rgba(0,0,0,0.8)',
+            whiteSpace: 'nowrap',
+            opacity: 0,
+            zIndex: 10,
+          }}
+        >
+          出示此畫面即可入場
+        </div>
       </div>
     </>
   )
