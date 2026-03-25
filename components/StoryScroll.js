@@ -290,6 +290,8 @@ export default function MainScroll() {
                   filter: 'brightness(1.4)',
                   willChange: 'transform, opacity',
                   zIndex: 1,
+                  maskImage: 'radial-gradient(ellipse 70% 50% at center, black 20%, transparent 100%)',
+                  WebkitMaskImage: 'radial-gradient(ellipse 80% 50% at center, black 70%, transparent 100%)',
                 }}
               />
             ) : (
