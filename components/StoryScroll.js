@@ -8,7 +8,7 @@ import styles from './StoryScroll.module.css'
 
 // ── Heat haze config ──
 const HEAT_HAZE_ENABLED = true   // true = 開啟空氣浮動特效, false = 關閉
-const HEAT_HAZE_START_Y = 45     // 從圖片高度的幾 % 開始有特效 (0 = 頂部, 100 = 底部)
+const HEAT_HAZE_START_Y = 40     // 從圖片高度的幾 % 開始有特效 (0 = 頂部, 100 = 底部)
 
 const directions = [
   { x: () => window.innerWidth * 0.8, y: '-60%', rotateY: -25, rotateX: 12 },
@@ -312,8 +312,8 @@ export default function MainScroll() {
         let t = 0
         const animate = () => {
           t += 0.008
-          const bfX = 0.005 + Math.sin(t) * 0.003
-          const bfY = 0.01 + Math.cos(t * 0.7) * 0.005
+          const bfX = 0.005 + Math.cos(t) * 0.003
+          const bfY = 0.01 + Math.sin(t * 0.7) * 0.005
           turbNode.setAttribute('baseFrequency', `${bfX} ${bfY}`)
           hazeRafRef.current = requestAnimationFrame(animate)
         }
@@ -335,7 +335,7 @@ export default function MainScroll() {
       <ProgressBar barRef={progressBarRef} />
       <div ref={containerRef} className="main-scroll-wrapper" style={{ position: 'relative', zIndex: 1, height: '100vh' }}>
         <div ref={scrollHintRef} className={styles.scrollHint}>
-          <span className={styles.scrollHintText}>向下滾動</span>
+          <span className={styles.scrollHintText}>向上滑動</span>
           <div className={styles.chevron} />
           <div className={styles.chevron} />
           <div className={styles.chevron} />
