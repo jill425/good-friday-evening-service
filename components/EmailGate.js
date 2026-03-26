@@ -6,22 +6,16 @@ const GOOGLE_SCRIPT_URL = process.env.NEXT_PUBLIC_GOOGLE_SCRIPT_URL || 'YOUR_GOO
 
 export default function EmailGate({ onUnlock }) {
   const isDev = process.env.NODE_ENV === 'development'
-  const [isVisible, setIsVisible] = useState(!isDev)
+  const [isVisible, setIsVisible] = useState(true)
   const [email, setEmail] = useState('')
   const [status, setStatus] = useState('idle') // idle, submitting, success, error
   const [message, setMessage] = useState('')
-
-  useEffect(() => {
-    if (isDev) {
-      if (onUnlock) onUnlock()
-    }
-  }, [isDev, onUnlock])
 
   // Preload audio files — shared promise so it only runs once
   const audioReadyRef = { current: null }
   const ensureAudioPreloaded = () => {
     if (audioReadyRef.current) return audioReadyRef.current
-    const files = ['/sorroww.m4a', '/wooshh.m4a', '/cello-circle.m4a']
+    const files = ['/sorroww.m4a', '/cello-circle.m4a']
     audioReadyRef.current = Promise.all(files.map(src => new Promise((resolve) => {
       const a = new Audio()
       a.preload = 'auto'
@@ -33,7 +27,6 @@ export default function EmailGate({ onUnlock }) {
     return audioReadyRef.current
   }
 
-  // Start preloading as soon as component mounts
   useEffect(() => {
     ensureAudioPreloaded()
   }, [])
@@ -45,6 +38,17 @@ export default function EmailGate({ onUnlock }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
+
+    // Dev: skip email validation and API call
+    if (isDev) {
+      setStatus('success')
+      setMessage('（Dev 模式）即將進入...')
+      ensureAudioPreloaded().then(() => {
+        setIsVisible(false)
+        if (onUnlock) onUnlock()
+      })
+      return
+    }
 
     if (!email || !email.includes('@')) {
       setMessage('請輸入有效的 Email')

@@ -35,22 +35,13 @@ export default function MainScroll() {
   const entranceTextRef = useRef(null)
   const hazeOverlayRef = useRef(null)
   const journeyBgmRef = useRef(null)
-  const whooshPoolRef = useRef(null)
+  const audioCtxRef = useRef(null)
 
   // Preload audio files on mount so they're ready when needed
   useEffect(() => {
     const bgm = new Audio('/sorroww.m4a')
     bgm.preload = 'auto'
-    bgm.volume = 0
     journeyBgmRef.current = bgm
-
-    const pool = Array.from({ length: 3 }, () => {
-      const a = new Audio('/wooshh.m4a')
-      a.preload = 'auto'
-      a.volume = 0.15
-      return a
-    })
-    whooshPoolRef.current = pool
   }, [])
 
   useEffect(() => {
@@ -195,13 +186,26 @@ export default function MainScroll() {
     overlay.style.visibility = 'visible'
     overlay.style.pointerEvents = 'auto'
 
-    // Fade out background music, start journey BGM
+    // Fade out background music, start journey BGM with Web Audio API (iOS volume fix)
     window.dispatchEvent(new Event('journey-start'))
+
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)()
+    audioCtxRef.current = audioCtx
+
+    // Journey BGM — route through GainNode for real volume control on iOS
     const journeyBgm = journeyBgmRef.current
     journeyBgm.loop = false
-    journeyBgm.volume = 0
+    const bgmSource = audioCtx.createMediaElementSource(journeyBgm)
+    const bgmGain = audioCtx.createGain()
+    bgmGain.gain.value = 0
+    bgmSource.connect(bgmGain)
+    bgmGain.connect(audioCtx.destination)
+
+    const bgmVol = { value: 0 }
+    const syncBgmGain = () => { bgmGain.gain.value = bgmVol.value }
+
     journeyBgm.play().catch(() => {})
-    gsap.to(journeyBgm, { volume: 0.3, duration: 4, ease: 'power2.inOut' })
+    gsap.to(bgmVol, { value: 0.3, duration: 4, ease: 'power2.inOut', onUpdate: syncBgmGain })
 
     // Fade out journey BGM 3.31s before the track ends, then fade back in on restart
     let bgmFading = false
@@ -209,7 +213,7 @@ export default function MainScroll() {
     const onTimeUpdate = () => {
       if (!bgmFading && journeyBgm.duration && journeyBgm.currentTime >= journeyBgm.duration - 3.31) {
         bgmFading = true
-        bgmTween = gsap.to(journeyBgm, { volume: 0, duration: 3.31, ease: 'power2.inOut' })
+        bgmTween = gsap.to(bgmVol, { value: 0, duration: 3.31, ease: 'power2.inOut', onUpdate: syncBgmGain })
       }
     }
     journeyBgm.addEventListener('timeupdate', onTimeUpdate)
@@ -217,21 +221,11 @@ export default function MainScroll() {
       if (bgmTween) bgmTween.kill()
       bgmFading = false
       journeyBgm.currentTime = 0
-      journeyBgm.volume = 0
+      bgmVol.value = 0
+      syncBgmGain()
       journeyBgm.play().catch(() => {})
-      bgmTween = gsap.to(journeyBgm, { volume: 0.3, duration: 3, ease: 'power2.inOut' })
+      bgmTween = gsap.to(bgmVol, { value: 0.3, duration: 3, ease: 'power2.inOut', onUpdate: syncBgmGain })
     })
-
-    // Use preloaded whoosh sound pool
-    const whooshPool = whooshPoolRef.current
-    let whooshIdx = 0
-    const playWhoosh = (vol) => {
-      const w = whooshPool[whooshIdx % whooshPool.length]
-      w.volume = Math.min(1, vol)
-      w.currentTime = 0
-      w.play().catch(() => {})
-      whooshIdx++
-    }
 
     // Hide progress bar
     if (progressBarRef.current) {
@@ -267,9 +261,8 @@ export default function MainScroll() {
       const gray = Math.pow(progress, 0.5)
       const driftY = maxDriftY * Math.pow(progress, 2)
       const driftYpx = (driftY / 100) * window.innerHeight
-      const whooshVol = 0.2 + 0.6 * progress // louder as it speeds up
 
-      // Set to scattered position + play whoosh
+      // Set to scattered position
       tl.set(img, {
         opacity: 0,
         scale: 1.5,
@@ -278,7 +271,6 @@ export default function MainScroll() {
         rotateY: dir.rotateY,
         rotateX: dir.rotateX,
         filter: `grayscale(${gray})`,
-        onComplete: () => playWhoosh(whooshVol),
       })
 
       // Fly in from outside to converge point
