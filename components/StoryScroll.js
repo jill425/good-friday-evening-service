@@ -9,6 +9,7 @@ import styles from './StoryScroll.module.css'
 // ── Heat haze config ──
 const HEAT_HAZE_ENABLED = true   // true = 開啟空氣浮動特效, false = 關閉
 const HEAT_HAZE_START_Y = 40     // 從圖片高度的幾 % 開始有特效 (0 = 頂部, 100 = 底部)
+const HEAT_HAZE_FPS = 20         // haze 動畫幀率 (降低可省 GPU, 60 = 滿幀)
 
 const directions = [
   { x: () => window.innerWidth * 0.8, y: '-60%', rotateY: -25, rotateX: 12 },
@@ -310,12 +311,16 @@ export default function MainScroll() {
         const turbNode = turbRef.current
         if (!turbNode) return
         let t = 0
-        const animate = () => {
+        const interval = 1000 / HEAT_HAZE_FPS
+        let lastFrame = 0
+        const animate = (now) => {
+          hazeRafRef.current = requestAnimationFrame(animate)
+          if (now - lastFrame < interval) return
+          lastFrame = now
           t += 0.008
           const bfX = 0.005 + Math.cos(t) * 0.003
           const bfY = 0.01 + Math.sin(t * 0.7) * 0.005
           turbNode.setAttribute('baseFrequency', `${bfX} ${bfY}`)
-          hazeRafRef.current = requestAnimationFrame(animate)
         }
         hazeRafRef.current = requestAnimationFrame(animate)
       },
