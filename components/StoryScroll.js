@@ -9,7 +9,7 @@ import styles from './StoryScroll.module.css'
 // ── Heat haze config ──
 const HEAT_HAZE_ENABLED = true   // true = 開啟空氣浮動特效, false = 關閉
 const HEAT_HAZE_START_Y = 40     // 從圖片高度的幾 % 開始有特效 (0 = 頂部, 100 = 底部)
-const HEAT_HAZE_FPS = 20         // haze 動畫幀率 (降低可省 GPU, 60 = 滿幀)
+const HEAT_HAZE_FPS = 30         // haze 動畫幀率 (降低可省 GPU, 60 = 滿幀)
 
 const directions = [
   { x: () => window.innerWidth * 0.8, y: '-60%', rotateY: -25, rotateX: 12 },

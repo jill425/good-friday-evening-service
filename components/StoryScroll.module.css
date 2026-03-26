@@ -1,12 +1,12 @@
 .scrollHint {
   position: absolute;
-  bottom: 2.5rem;
+  bottom: 8vh;
   left: 50%;
   transform: translateX(-50%);
   display: flex;
-  flex-direction: column;
+  flex-direction: column-reverse;
   align-items: center;
-  gap: 4px;
+  gap: 0.5vh;
   z-index: 100;
   pointer-events: none;
   transition: opacity 0.5s ease;
@@ -14,18 +14,18 @@
 
 .scrollHintText {
   color: rgba(255, 255, 255, 0.5);
-  font-size: 0.7rem;
+  font-size: 1.6vh;
   letter-spacing: 0.2em;
   text-transform: uppercase;
-  margin-bottom: 6px;
+  margin-top: 0.5vh;
 }
 
 .chevron {
-  width: 12px;
-  height: 12px;
+  width: 1.8vh;
+  height: 1.8vh;
   border-right: 1.5px solid rgba(255, 255, 255, 0.5);
   border-bottom: 1.5px solid rgba(255, 255, 255, 0.5);
-  transform: rotate(45deg);
+  transform: rotate(-135deg);
   animation: bounce 1.4s ease infinite;
 }
 
@@ -40,11 +40,11 @@
 @keyframes bounce {
   0%, 60%, 100% {
     opacity: 0.2;
-    transform: rotate(45deg) translateY(-3px);
+    transform: rotate(-135deg) translateY(3px);
   }
   30% {
     opacity: 0.8;
-    transform: rotate(45deg) translateY(3px);
+    transform: rotate(-135deg) translateY(-3px);
   }
 }
 
