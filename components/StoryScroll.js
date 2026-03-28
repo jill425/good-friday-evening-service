@@ -1,15 +1,30 @@
 'use client'
-import { useEffect, useRef, useCallback } from 'react'
+import { useEffect, useRef, useCallback, useState } from 'react'
 import { gsap } from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import { Slides, finalImage } from '../data/slides'
 import ProgressBar from './ProgressBar'
 import styles from './StoryScroll.module.css'
 
+// ── Final video config ──
+const FINAL_VIDEO_ENABLED = true  // true = 嘗試用影片取代靜態圖, false = 一律用 final.png
+const FINAL_VIDEO_SRC = '/final_video.mov'
+
 // ── Heat haze config ──
 const HEAT_HAZE_ENABLED = true   // true = 開啟空氣浮動特效, false = 關閉
 const HEAT_HAZE_START_Y = 40     // 從圖片高度的幾 % 開始有特效 (0 = 頂部, 100 = 底部)
 const HEAT_HAZE_FPS = 30         // haze 動畫幀率 (降低可省 GPU, 60 = 滿幀)
+
+// ── Final poem config ──
+const FINAL_TEXT_ENABLED = true   // true = 顯示詩句 + 入場字樣, false = 全部隱藏
+const FINAL_POEM_TOP_Y = 55      // 文字起始位置：從畫面頂部幾 % 開始 (0 = 頂部, 100 = 底部)
+const FINAL_POEM_LINES = [
+  '祂被掛在木頭上',
+  '親身擔當了我們的罪',
+  '使我們既然在罪上死',
+  '就能向義而活',
+]
+const FINAL_POEM_CITE = '— 彼得前書 2:24'
 
 const directions = [
   { x: () => window.innerWidth * 0.8, y: '-60%', rotateY: -25, rotateX: 12 },
@@ -36,14 +51,25 @@ export default function MainScroll() {
   const entranceTextRef = useRef(null)
   const turbRef = useRef(null)
   const hazeRafRef = useRef(null)
+  const poemRef = useRef(null)
   const journeyBgmRef = useRef(null)
   const audioCtxRef = useRef(null)
+  const finalVideoRef = useRef(null)
+  const [useVideo, setUseVideo] = useState(false)
 
-  // Preload audio files on mount so they're ready when needed
+  // Detect device capability & preload assets on mount
   useEffect(() => {
     const bgm = new Audio('/sorroww.m4a')
     bgm.preload = 'auto'
     journeyBgmRef.current = bgm
+
+    if (FINAL_VIDEO_ENABLED) {
+      const cores = navigator.hardwareConcurrency || 2
+      const mem = navigator.deviceMemory || 4 // deviceMemory is Chrome-only; default assume OK
+      if (cores >= 4 && mem >= 4) {
+        setUseVideo(true)
+      }
+    }
   }, [])
 
   useEffect(() => {
@@ -299,13 +325,17 @@ export default function MainScroll() {
       rewindIdx++
     }
 
-    // Reveal final image
+    // Reveal final image / video
     tl.to(finalImg, {
       opacity: 1,
       scale: 1,
       duration: 0.4,
       ease: 'power2.inOut',
       onComplete: () => {
+        // Start video playback if enabled
+        if (finalVideoRef.current) {
+          finalVideoRef.current.play().catch(() => {})
+        }
         if (!HEAT_HAZE_ENABLED) return
         // Start SVG turbulence animation
         const turbNode = turbRef.current
@@ -317,7 +347,7 @@ export default function MainScroll() {
           hazeRafRef.current = requestAnimationFrame(animate)
           if (now - lastFrame < interval) return
           lastFrame = now
-          t += 0.008
+          t += 0.002
           const bfX = 0.005 + Math.cos(t) * 0.003
           const bfY = 0.01 + Math.sin(t * 0.7) * 0.005
           turbNode.setAttribute('baseFrequency', `${bfX} ${bfY}`)
@@ -326,13 +356,28 @@ export default function MainScroll() {
       },
     }, '-=0.2')
 
-    // Show entrance text after delay
-    tl.to(entranceText, {
-      opacity: 1,
-      y: 0,
-      duration: 0.8,
-      ease: 'power2.out',
-    }, '+=1')
+    // Show poem lines one by one
+    if (FINAL_TEXT_ENABLED) {
+      const poemLines = poemRef.current?.querySelectorAll('.poem-line')
+      if (poemLines?.length) {
+        poemLines.forEach((line, i) => {
+          tl.to(line, {
+            opacity: 1,
+            y: 0,
+            duration: 1,
+            ease: 'power2.out',
+          }, i === 0 ? '+=1.2' : '+=0.6')
+        })
+      }
+
+      // Show entrance text after delay
+      tl.to(entranceText, {
+        opacity: 1,
+        y: 0,
+        duration: 0.8,
+        ease: 'power2.out',
+      }, '+=1.5')
+    }
   }, [])
 
   return (
@@ -491,19 +536,36 @@ export default function MainScroll() {
             height: '100%',
           }}
         >
-          {/* Sharp base layer */}
-          <img
-            src={`/images/${finalImage}.png`}
-            alt=""
-            style={{
-              position: 'absolute',
-              width: '100%',
-              height: '100%',
-              objectFit: 'cover',
-            }}
-          />
-          {/* SVG heat haze overlay — clipped to bottom portion */}
-          {HEAT_HAZE_ENABLED && (
+          {/* Sharp base layer — video or static image */}
+          {useVideo ? (
+            <video
+              ref={finalVideoRef}
+              src={FINAL_VIDEO_SRC}
+              muted
+              loop
+              playsInline
+              preload="auto"
+              style={{
+                position: 'absolute',
+                width: '100%',
+                height: '100%',
+                objectFit: 'cover',
+              }}
+            />
+          ) : (
+            <img
+              src={`/images/${finalImage}.png`}
+              alt=""
+              style={{
+                position: 'absolute',
+                width: '100%',
+                height: '100%',
+                objectFit: 'cover',
+              }}
+            />
+          )}
+          {/* SVG heat haze overlay — clipped to bottom portion (only with static image) */}
+          {HEAT_HAZE_ENABLED && !useVideo && (
             <>
               <svg style={{ position: 'absolute', width: 0, height: 0 }}>
                 <defs>
@@ -542,7 +604,60 @@ export default function MainScroll() {
             </>
           )}
         </div>
-        <div
+        {/* Final poem — black text with white outline */}
+        {FINAL_TEXT_ENABLED && <div
+          ref={poemRef}
+          style={{
+            position: 'absolute',
+            top: `${FINAL_POEM_TOP_Y}%`,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: '0.6em',
+            zIndex: 10,
+            pointerEvents: 'none',
+          }}
+        >
+          {FINAL_POEM_LINES.map((line, i) => (
+            <span
+              key={i}
+              className="poem-line"
+              style={{
+                opacity: 0,
+                // transform: 'translateY(12px)',
+                fontSize: 'clamp(0.9rem, 5.6vw, 1.3rem)',
+                fontWeight: '300',
+                letterSpacing: '0.15em',
+                color: '#ffffff',
+                WebkitTextStroke: '0.1px rgba(255, 255, 255, 0.9)',
+                textShadow: '0 0 32px rgba(0, 0, 0, 0.9), 0 0 32px rgba(0, 0, 0, 0.9)',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {line}
+            </span>
+          ))}
+          {FINAL_POEM_CITE && (
+            <span
+              className="poem-line"
+              style={{
+                opacity: 0,
+                marginTop: '0.8em',
+                fontSize: 'clamp(0.65rem, 3.7vw, 1.2rem)',
+                fontWeight: '600',
+                letterSpacing: '0.12em',
+                color: 'rgba(255,255,255,0.9)',
+                textShadow: '0 0 64px rgba(0,0,0,0.5)',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {FINAL_POEM_CITE}
+            </span>
+          )}
+        </div>}
+        {FINAL_TEXT_ENABLED && <div
           ref={entranceTextRef}
           style={{
             position: 'absolute',
@@ -559,7 +674,7 @@ export default function MainScroll() {
           }}
         >
           出示此畫面即可入場
-        </div>
+        </div>}
       </div>
     </>
   )

@@ -60,29 +60,36 @@ export default function BackgroundMusic() {
     const playAudio = () => {
       if (journeyStarted) return;
       setupGain();
-      if (audioCtxRef.current?.state === 'suspended') {
-        audioCtxRef.current.resume();
-      }
-      const playPromise = audio.play();
-      if (playPromise !== undefined) {
-        playPromise
+      const tryPlay = () => {
+        audio.play()
           .then(() => {
             setIsPlaying(true);
             document.removeEventListener('click', playAudio);
             document.removeEventListener('touchstart', playAudio);
             document.removeEventListener('keydown', playAudio);
           })
-          .catch((error) => {
-            console.log("Autoplay prevented:", error);
-            setIsPlaying(false);
-          });
+          .catch(() => {});
+      };
+      if (audioCtxRef.current?.state === 'suspended') {
+        audioCtxRef.current.resume().then(tryPlay);
+      } else {
+        tryPlay();
       }
+    };
+
+    // Retry play on every interaction / scroll if audio is not playing
+    const retryPlay = () => {
+      if (journeyStarted || !audio.paused) return;
+      playAudio();
     };
 
     playAudio();
     document.addEventListener('click', playAudio);
     document.addEventListener('touchstart', playAudio);
     document.addEventListener('keydown', playAudio);
+    document.addEventListener('touchstart', retryPlay, { passive: true });
+    document.addEventListener('scroll', retryPlay, { passive: true });
+    document.addEventListener('mousedown', retryPlay);
 
     // Listen for journey-start event to fade out (1.5s — faster than before)
     const handleFadeOut = () => {
@@ -90,6 +97,9 @@ export default function BackgroundMusic() {
       document.removeEventListener('click', playAudio);
       document.removeEventListener('touchstart', playAudio);
       document.removeEventListener('keydown', playAudio);
+      document.removeEventListener('touchstart', retryPlay);
+      document.removeEventListener('scroll', retryPlay);
+      document.removeEventListener('mousedown', retryPlay);
       gsap.to(vol, { value: 0, duration: 1.5, ease: 'power2.inOut', onUpdate: syncGain, onComplete: () => {
         audio.pause();
         setIsPlaying(false);
@@ -101,6 +111,9 @@ export default function BackgroundMusic() {
       document.removeEventListener('click', playAudio);
       document.removeEventListener('touchstart', playAudio);
       document.removeEventListener('keydown', playAudio);
+      document.removeEventListener('touchstart', retryPlay);
+      document.removeEventListener('scroll', retryPlay);
+      document.removeEventListener('mousedown', retryPlay);
       window.removeEventListener('journey-start', handleFadeOut);
       audio.removeEventListener('timeupdate', onTimeUpdate);
       audio.removeEventListener('ended', onEnded);
