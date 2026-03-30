@@ -1,17 +1,17 @@
 'use client'
+import { useState } from 'react'
 import StarBackground from '@/components/StarBackground'
 import StoryScroll from '@/components/StoryScroll'
-import dynamic from 'next/dynamic'
 import EmailGate from '@/components/EmailGate'
 
-
 export default function Home() {
-  return (
+  const [unlocked, setUnlocked] = useState(false)
 
+  return (
     <div>
-      <EmailGate />
+      {!unlocked && <EmailGate onUnlock={() => setUnlocked(true)} />}
       <StarBackground />
-      <StoryScroll />
+      {unlocked && <StoryScroll />}
     </div>
   )
 }

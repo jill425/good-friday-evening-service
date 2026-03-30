@@ -6,6 +6,7 @@ const GOOGLE_SCRIPT_URL = process.env.NEXT_PUBLIC_GOOGLE_SCRIPT_URL || 'YOUR_GOO
 
 export default function EmailGate({ onUnlock }) {
   const isDev = process.env.NODE_ENV === 'development'
+  const [hydrated, setHydrated] = useState(false)
   const [isVisible, setIsVisible] = useState(true)
   const [email, setEmail] = useState('')
   const [status, setStatus] = useState('idle') // idle, submitting, success, error
@@ -28,6 +29,7 @@ export default function EmailGate({ onUnlock }) {
   }
 
   useEffect(() => {
+    setHydrated(true)
     ensureAudioPreloaded()
   }, [])
 
@@ -104,6 +106,35 @@ export default function EmailGate({ onUnlock }) {
 
   if (!isVisible) return null
 
+  if (!hydrated) return (
+    <div style={{
+      position: 'fixed',
+      inset: 0,
+      backgroundColor: '#000',
+      zIndex: 9999,
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: '1.2rem',
+      color: 'rgba(255,255,255,0.5)',
+      fontFamily: 'sans-serif',
+      fontSize: '0.85rem',
+      letterSpacing: '0.2em',
+    }}>
+      <div style={{
+        width: '28px',
+        height: '28px',
+        border: '2px solid rgba(255,255,255,0.15)',
+        borderTop: '2px solid rgba(255,255,255,0.7)',
+        borderRadius: '50%',
+        animation: 'spin 0.9s linear infinite',
+      }} />
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      載入中
+    </div>
+  )
+
   return (
     <div style={{
       position: 'fixed',
@@ -132,15 +163,14 @@ export default function EmailGate({ onUnlock }) {
         <img
           src="/under_crown_title.png"
           alt="Under The Crown 冠冕之下"
+          loading="lazy"
           style={{ width: '100%', maxWidth: '320px', marginBottom: '1.5rem', filter: 'invert(1)' }}
         />
         <p style={{ marginBottom: '2rem', color: '#888' }}>
-          請輸入您的 Email
-          <br />
-          與我們一同預備心，走進受難的旅程。
+          邀請您輸入 Email 一起延續今晚的感動
         </p>
 
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+        <form onSubmit={handleSubmit} method="post" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           {/* Hidden input for Netlify bot field if needed, generally handled by build step via the static form, 
               but good to have consistent naming */}
           <input type="hidden" name="form-name" value="email-gate" />
@@ -202,9 +232,7 @@ export default function EmailGate({ onUnlock }) {
           lineHeight: '1.6',
           letterSpacing: '0.03em',
         }}>
-          您的 Email 僅用於本次受難復活活動，
-          <br />
-          我們重視您的隱私，不會用於其他用途。
+          所有 Email 僅用於本次受難復活活動
         </p>
       </div>
     </div>

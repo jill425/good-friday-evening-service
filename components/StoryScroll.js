@@ -41,6 +41,7 @@ export default function MainScroll() {
 
   // Preload audio files on mount so they're ready when needed
   useEffect(() => {
+    if (journeyBgmRef.current) return
     const bgm = new Audio('/sorroww.m4a')
     bgm.preload = 'auto'
     journeyBgmRef.current = bgm
@@ -84,7 +85,7 @@ export default function MainScroll() {
         scrollTrigger: {
           trigger: containerRef.current,
           start: 'top top',
-          end: () => `+=${slideElements.length * 600}`,
+          end: () => `+=${slideElements.length * 400}`,
           scrub: 1,
           pin: true,
           anticipatePin: 1,
@@ -187,6 +188,56 @@ export default function MainScroll() {
     document.body.style.overflow = 'hidden'
     overlay.style.visibility = 'visible'
     overlay.style.pointerEvents = 'auto'
+    overlay.style.opacity = '1'
+
+    // Show loading indicator while rewind images finish downloading
+    const loadingEl = document.createElement('div')
+    loadingEl.style.cssText = [
+      'position:absolute', 'inset:0', 'display:flex', 'flex-direction:column',
+      'align-items:center', 'justify-content:center', 'gap:1rem',
+      'color:rgba(255,255,255,0.45)', 'font-size:0.8rem', 'letter-spacing:0.2em',
+      'font-family:sans-serif', 'z-index:10',
+    ].join(';')
+    loadingEl.innerHTML = `
+      <div id="ldr-spinner" style="width:24px;height:24px;border:2px solid rgba(255,255,255,0.15);border-top-color:rgba(255,255,255,0.7);border-radius:50%"></div>
+      <style>#ldr-spinner{animation:ldr-spin 0.9s linear infinite}@keyframes ldr-spin{to{transform:rotate(360deg)}}</style>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:0.4rem">
+        <span id="ldr-text">下載中</span>
+        <div id="ldr-bar-wrap" style="width:120px;height:2px;background:rgba(255,255,255,0.1);border-radius:2px;overflow:hidden">
+          <div id="ldr-bar" style="height:100%;width:0%;background:rgba(255,255,255,0.6);border-radius:2px;transition:width 0.2s ease"></div>
+        </div>
+        <span id="ldr-count" style="font-size:0.7rem;opacity:0.5">0 / 0</span>
+      </div>
+    `
+    overlay.appendChild(loadingEl)
+
+    const rewindImgs = Array.from(overlay.querySelectorAll('.rewind-img'))
+    const allImgs = [...rewindImgs]
+    const finalSrc = `/images/${finalImage}.webp`
+    const finalPreload = new Image()
+    finalPreload.src = finalSrc
+    allImgs.push(finalPreload)
+
+    const total = allImgs.length
+    let loaded = 0
+    const ldrBar = loadingEl.querySelector('#ldr-bar')
+    const ldrCount = loadingEl.querySelector('#ldr-count')
+    ldrCount.textContent = `0 / ${total}`
+
+    const onOneLoaded = () => {
+      loaded++
+      const pct = Math.round((loaded / total) * 100)
+      ldrBar.style.width = `${pct}%`
+      ldrCount.textContent = `${loaded} / ${total}`
+    }
+
+    const waitForImages = Promise.all(allImgs.map(img => {
+      if (img.complete) { onOneLoaded(); return Promise.resolve() }
+      return new Promise(res => {
+        img.addEventListener('load', () => { onOneLoaded(); res() }, { once: true })
+        img.addEventListener('error', () => { onOneLoaded(); res() }, { once: true })
+      })
+    }))
 
     // Fade out background music, start journey BGM with Web Audio API (iOS volume fix)
     window.dispatchEvent(new Event('journey-start'))
@@ -206,7 +257,7 @@ export default function MainScroll() {
     const bgmVol = { value: 0 }
     const syncBgmGain = () => { bgmGain.gain.value = bgmVol.value }
 
-    journeyBgm.play().catch(() => {})
+    journeyBgm.play().catch(() => { })
     gsap.to(bgmVol, { value: 0.3, duration: 4, ease: 'power2.inOut', onUpdate: syncBgmGain })
 
     // Fade out journey BGM 3.31s before the track ends, then fade back in on restart
@@ -225,7 +276,7 @@ export default function MainScroll() {
       journeyBgm.currentTime = 0
       bgmVol.value = 0
       syncBgmGain()
-      journeyBgm.play().catch(() => {})
+      journeyBgm.play().catch(() => { })
       bgmTween = gsap.to(bgmVol, { value: 0.3, duration: 3, ease: 'power2.inOut', onUpdate: syncBgmGain })
     })
 
@@ -243,10 +294,11 @@ export default function MainScroll() {
     const entranceText = entranceTextRef.current
     gsap.set(entranceText, { opacity: 0, y: 20 })
 
-    const tl = gsap.timeline()
+    // Wait for all rewind images before starting animation
+    waitForImages.then(() => {
+      overlay.removeChild(loadingEl)
 
-    // Fade in the overlay
-    tl.to(overlay, { opacity: 1, duration: 0.6, ease: 'power2.inOut' })
+      const tl = gsap.timeline()
 
     // Rewind: play images in reverse order, each from outside → center, getting faster
     const total = imageInfos.length
@@ -327,12 +379,13 @@ export default function MainScroll() {
     }, '-=0.2')
 
     // Show entrance text after delay
-    tl.to(entranceText, {
-      opacity: 1,
-      y: 0,
-      duration: 0.8,
-      ease: 'power2.out',
-    }, '+=1')
+      tl.to(entranceText, {
+        opacity: 1,
+        y: 0,
+        duration: 0.8,
+        ease: 'power2.out',
+      }, '+=1')
+    }) // end waitForImages.then
   }, [])
 
   return (
@@ -368,6 +421,7 @@ export default function MainScroll() {
                 className="zoom-image"
                 src={`/images/${slide.src}.webp`}
                 alt={slide.src.toString()}
+                loading="lazy"
                 style={{
                   position: 'absolute',
                   width: 'clamp(200px, 60vw, 480px)',
@@ -397,37 +451,37 @@ export default function MainScroll() {
                 {(() => {
                   const amp = slide.amplify || 1
                   return (<>
-                <p style={{
-                  fontSize: `clamp(${0.65 * amp}rem, ${2.5 * amp}vw, ${0.9 * amp}rem)`,
-                  fontWeight: '400',
-                  letterSpacing: '0.15em',
-                  opacity: 0.6,
-                  marginBottom: '4px',
-                  textTransform: 'uppercase',
-                }}>
-                  {slide.subtitle}
-                </p>
-                <h2 style={{
-                  fontSize: `clamp(${1.1 * amp}rem, ${4 * amp}vw, ${1.8 * amp}rem)`,
-                  fontWeight: '600',
-                  marginBottom: 'clamp(10px, 2vw, 18px)',
-                  textShadow: '0 2px 10px rgba(0,0,0,0.8)',
-                  lineHeight: '1.4',
-                  whiteSpace: slide.amplify ? 'nowrap' : undefined,
-                  color: slide.title && !slide.content ? 'rgba(255,255,255,0.55)' : undefined,
-                }}>
-                  {slide.title}
-                </h2>
-                <p style={{
-                  fontSize: `clamp(${0.8 * amp}rem, ${2.8 * amp}vw, ${1.1 * amp}rem)`,
-                  lineHeight: '1.8',
-                  fontWeight: '300',
-                  textShadow: '0 2px 8px rgba(0,0,0,0.8)',
-                  opacity: 0.9,
-                  whiteSpace: slide.amplify ? 'pre' : 'pre-wrap',
-                }}>
-                  {slide.content}
-                </p>
+                    <p style={{
+                      fontSize: `clamp(${0.65 * amp}rem, ${2.5 * amp}vw, ${0.9 * amp}rem)`,
+                      fontWeight: '400',
+                      letterSpacing: '0.15em',
+                      opacity: 0.6,
+                      marginBottom: '4px',
+                      textTransform: 'uppercase',
+                    }}>
+                      {slide.subtitle}
+                    </p>
+                    <h2 style={{
+                      fontSize: `clamp(${1.1 * amp}rem, ${4 * amp}vw, ${1.8 * amp}rem)`,
+                      fontWeight: '600',
+                      marginBottom: 'clamp(10px, 2vw, 18px)',
+                      textShadow: '0 2px 10px rgba(0,0,0,0.8)',
+                      lineHeight: '1.4',
+                      whiteSpace: slide.amplify ? 'nowrap' : undefined,
+                      color: slide.title && !slide.content ? 'rgba(255,255,255,0.55)' : undefined,
+                    }}>
+                      {slide.title}
+                    </h2>
+                    <p style={{
+                      fontSize: `clamp(${0.8 * amp}rem, ${2.8 * amp}vw, ${1.1 * amp}rem)`,
+                      lineHeight: '1.8',
+                      fontWeight: '300',
+                      textShadow: '0 2px 8px rgba(0,0,0,0.8)',
+                      opacity: 0.9,
+                      whiteSpace: slide.amplify ? 'pre' : 'pre-wrap',
+                    }}>
+                      {slide.content}
+                    </p>
                   </>)
                 })()}
               </div>
@@ -440,9 +494,12 @@ export default function MainScroll() {
           className={styles.journeyBtn}
           onClick={handleJourneyStart}
         >
-          <span className={styles.arrowLeft}>›</span>
-          旅程開始
-          <span className={styles.arrowRight}>‹</span>
+          <span className={styles.journeyBtnHint}>準備好了嗎</span>
+          <div className={styles.journeyBtnInner}>
+            <span className={styles.arrowLeft}>›</span>
+            開始旅程
+            <span className={styles.arrowRight}>‹</span>
+          </div>
         </div>
       </div>
 
@@ -493,7 +550,7 @@ export default function MainScroll() {
         >
           {/* Sharp base layer */}
           <img
-            src={`/images/${finalImage}.png`}
+            src={`/images/${finalImage}.webp`}
             alt=""
             style={{
               position: 'absolute',
@@ -527,7 +584,7 @@ export default function MainScroll() {
                 </defs>
               </svg>
               <img
-                src={`/images/${finalImage}.png`}
+                src={`/images/${finalImage}.webp`}
                 alt=""
                 style={{
                   position: 'absolute',
