@@ -300,85 +300,85 @@ export default function MainScroll() {
 
       const tl = gsap.timeline()
 
-    // Rewind: play images in reverse order, each from outside → center, getting faster
-    const total = imageInfos.length
-    const maxDriftY = -20
-    let dur = 0.4
-    const minDur = 0.12
-    let rewindIdx = 0
+      // Rewind: play images in reverse order, each from outside → center, getting faster
+      const total = imageInfos.length
+      const maxDriftY = -20
+      let dur = 0.4
+      const minDur = 0.12
+      let rewindIdx = 0
 
-    for (let i = total - 1; i >= 0; i--) {
-      const img = imgs[i]
-      const dir = directions[imageInfos[i].dirIdx]
-      const startX = typeof dir.x === 'function' ? dir.x() : dir.x
-      const progress = (rewindIdx + 1) / total
-      const gray = Math.pow(progress, 0.5)
-      const driftY = maxDriftY * Math.pow(progress, 2)
-      const driftYpx = (driftY / 100) * window.innerHeight
+      for (let i = total - 1; i >= 0; i--) {
+        const img = imgs[i]
+        const dir = directions[imageInfos[i].dirIdx]
+        const startX = typeof dir.x === 'function' ? dir.x() : dir.x
+        const progress = (rewindIdx + 1) / total
+        const gray = Math.pow(progress, 0.5)
+        const driftY = maxDriftY * Math.pow(progress, 2)
+        const driftYpx = (driftY / 100) * window.innerHeight
 
-      // Set to scattered position
-      tl.set(img, {
-        opacity: 0,
-        scale: 1.5,
-        x: startX,
-        y: dir.y,
-        rotateY: dir.rotateY,
-        rotateX: dir.rotateX,
-        filter: `grayscale(${gray})`,
-      })
+        // Set to scattered position
+        tl.set(img, {
+          opacity: 0,
+          scale: 1.5,
+          x: startX,
+          y: dir.y,
+          rotateY: dir.rotateY,
+          rotateX: dir.rotateX,
+          filter: `grayscale(${gray})`,
+        })
 
-      // Fly in from outside to converge point
-      tl.to(img, {
+        // Fly in from outside to converge point
+        tl.to(img, {
+          opacity: 1,
+          scale: 1,
+          x: 0,
+          y: driftYpx,
+          rotateY: 0,
+          rotateX: 0,
+          duration: dur * 0.95,
+          ease: 'power2.out',
+        })
+
+        // Shrink and fade
+        tl.to(img, {
+          opacity: 0,
+          scale: 0.3,
+          duration: dur * 0.05,
+          ease: 'power2.in',
+        })
+
+        dur = Math.max(minDur, dur * 0.87)
+        rewindIdx++
+      }
+
+      // Reveal final image
+      tl.to(finalImg, {
         opacity: 1,
         scale: 1,
-        x: 0,
-        y: driftYpx,
-        rotateY: 0,
-        rotateX: 0,
-        duration: dur * 0.95,
-        ease: 'power2.out',
-      })
-
-      // Shrink and fade
-      tl.to(img, {
-        opacity: 0,
-        scale: 0.3,
-        duration: dur * 0.05,
-        ease: 'power2.in',
-      })
-
-      dur = Math.max(minDur, dur * 0.87)
-      rewindIdx++
-    }
-
-    // Reveal final image
-    tl.to(finalImg, {
-      opacity: 1,
-      scale: 1,
-      duration: 0.4,
-      ease: 'power2.inOut',
-      onComplete: () => {
-        if (!HEAT_HAZE_ENABLED) return
-        // Start SVG turbulence animation
-        const turbNode = turbRef.current
-        if (!turbNode) return
-        let t = 0
-        const interval = 1000 / HEAT_HAZE_FPS
-        let lastFrame = 0
-        const animate = (now) => {
+        duration: 0.4,
+        ease: 'power2.inOut',
+        onComplete: () => {
+          if (!HEAT_HAZE_ENABLED) return
+          // Start SVG turbulence animation
+          const turbNode = turbRef.current
+          if (!turbNode) return
+          let t = 0
+          const interval = 1000 / HEAT_HAZE_FPS
+          let lastFrame = 0
+          const animate = (now) => {
+            hazeRafRef.current = requestAnimationFrame(animate)
+            if (now - lastFrame < interval) return
+            lastFrame = now
+            t += 0.008
+            const bfX = 0.005 + Math.cos(t) * 0.003
+            const bfY = 0.01 + Math.sin(t * 0.7) * 0.005
+            turbNode.setAttribute('baseFrequency', `${bfX} ${bfY}`)
+          }
           hazeRafRef.current = requestAnimationFrame(animate)
-          if (now - lastFrame < interval) return
-          lastFrame = now
-          t += 0.008
-          const bfX = 0.005 + Math.cos(t) * 0.003
-          const bfY = 0.01 + Math.sin(t * 0.7) * 0.005
-          turbNode.setAttribute('baseFrequency', `${bfX} ${bfY}`)
-        }
-        hazeRafRef.current = requestAnimationFrame(animate)
-      },
-    }, '-=0.2')
+        },
+      }, '-=0.2')
 
-    // Show entrance text after delay
+      // Show entrance text after delay
       tl.to(entranceText, {
         opacity: 1,
         y: 0,
@@ -409,8 +409,6 @@ export default function MainScroll() {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              // paddingTop: slide.type === 'text' ? '20vh' : 0,
-              paddingTop: 0,
               overflow: 'hidden',
               perspective: '1000px',
               opacity: i === 0 ? 1 : 0,
@@ -494,7 +492,6 @@ export default function MainScroll() {
           className={styles.journeyBtn}
           onClick={handleJourneyStart}
         >
-          <span className={styles.journeyBtnHint}>準備好了嗎</span>
           <div className={styles.journeyBtnInner}>
             <span className={styles.arrowLeft}>›</span>
             開始旅程

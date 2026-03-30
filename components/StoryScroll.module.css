@@ -55,7 +55,7 @@
 /* Journey start button */
 .journeyBtn {
   position: absolute;
-  bottom: clamp(24px, 8vh, 60px);
+  bottom: clamp(80px, 25vh, 180px);
   left: 50%;
   transform: translateX(-50%);
   display: flex;
@@ -86,6 +86,7 @@
   letter-spacing: 0.3em;
   text-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
   transition: color 0.3s, text-shadow 0.3s;
+  white-space: nowrap;
 }
 
 .arrowLeft,
