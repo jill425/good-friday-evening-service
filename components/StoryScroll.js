@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useRef, useCallback, useState } from 'react'
+import { useEffect, useRef, useCallback } from 'react'
 import { gsap } from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import { Slides, finalImage } from '../data/slides'
@@ -7,39 +7,18 @@ import ProgressBar from './ProgressBar'
 import styles from './StoryScroll.module.css'
 
 // ── Final video config ──
-const FINAL_VIDEO_ENABLED = true  // true = 嘗試用影片取代靜態圖, false = 一律用 final.png
-const FINAL_VIDEO_SRC = '/final_video.mov'
+const STATIC_IMAGE_FALLBACK = false                           // true = 不播影片，只顯示靜態圖 final.png, false = 播影片
+const FIRST_ROUND_ENABLED = true                              // true = 先播 first_round 再接 loop, false = 直接播 loop
+const FINAL_VIDEO_FIRST_SRC = '/final_video_first_round.mov'  // 第一段影片（含 rewind 效果）
+const FINAL_VIDEO_LOOP_SRC = '/final_video_rotate.mov'        // 第二段影片（無限循環）
 
-// ── Heat haze config ──
-const HEAT_HAZE_ENABLED = true   // true = 開啟空氣浮動特效, false = 關閉
-const HEAT_HAZE_START_Y = 40     // 從圖片高度的幾 % 開始有特效 (0 = 頂部, 100 = 底部)
-const HEAT_HAZE_FPS = 30         // haze 動畫幀率 (降低可省 GPU, 60 = 滿幀)
-
-// ── Final poem config ──
-const FINAL_TEXT_ENABLED = true   // true = 顯示詩句 + 入場字樣, false = 全部隱藏
-const FINAL_POEM_TOP_Y = 55      // 文字起始位置：從畫面頂部幾 % 開始 (0 = 頂部, 100 = 底部)
-const FINAL_POEM_LINES = [
-  '祂被掛在木頭上',
-  '親身擔當了我們的罪',
-  '使我們既然在罪上死',
-  '就能向義而活',
-]
-const FINAL_POEM_CITE = '— 彼得前書 2:24'
+// ── Final entrance text config ──
+const FINAL_TEXT_ENABLED = true   // true = 顯示「出示此畫面即可入場」, false = 隱藏
 
 const directions = [
   { x: () => window.innerWidth * 0.8, y: '-60%', rotateY: -25, rotateX: 12 },
   { x: () => -window.innerWidth * 0.8, y: '60%', rotateY: 25, rotateX: -12 },
 ]
-
-// Pre-compute image info (direction index for each image slide)
-const imageInfos = (() => {
-  let count = 0
-  return Slides.filter(s => s.type === 'image').map(s => {
-    const dirIdx = count % directions.length
-    count++
-    return { src: s.src, dirIdx }
-  })
-})()
 
 export default function MainScroll() {
   const containerRef = useRef(null)
@@ -47,29 +26,17 @@ export default function MainScroll() {
   const scrollHintRef = useRef(null)
   const journeyBtnRef = useRef(null)
   const rewindRef = useRef(null)
-  const finalImgRef = useRef(null)
   const entranceTextRef = useRef(null)
-  const turbRef = useRef(null)
-  const hazeRafRef = useRef(null)
-  const poemRef = useRef(null)
+  const firstVideoRef = useRef(null)
+  const loopVideoRef = useRef(null)
   const journeyBgmRef = useRef(null)
   const audioCtxRef = useRef(null)
-  const finalVideoRef = useRef(null)
-  const [useVideo, setUseVideo] = useState(false)
 
-  // Detect device capability & preload assets on mount
+  // Preload audio on mount
   useEffect(() => {
     const bgm = new Audio('/sorroww.m4a')
     bgm.preload = 'auto'
     journeyBgmRef.current = bgm
-
-    if (FINAL_VIDEO_ENABLED) {
-      const cores = navigator.hardwareConcurrency || 2
-      const mem = navigator.deviceMemory || 4 // deviceMemory is Chrome-only; default assume OK
-      if (cores >= 4 && mem >= 4) {
-        setUseVideo(true)
-      }
-    }
   }, [])
 
   useEffect(() => {
@@ -260,123 +227,43 @@ export default function MainScroll() {
       gsap.to(progressBarRef.current.parentElement, { opacity: 0, duration: 0.3 })
     }
 
-    const imgs = gsap.utils.toArray(overlay.querySelectorAll('.rewind-img'))
-    const finalImg = finalImgRef.current
-
-    gsap.set(imgs, { opacity: 0, scale: 1.5, transformPerspective: 800 })
-    gsap.set(finalImg, { opacity: 0, scale: 1.05 })
-
     const entranceText = entranceTextRef.current
-    gsap.set(entranceText, { opacity: 0, y: 20 })
+    if (entranceText) gsap.set(entranceText, { opacity: 0 })
 
-    const tl = gsap.timeline()
+    const firstVideo = firstVideoRef.current
+    const loopVideo = loopVideoRef.current
 
-    // Fade in the overlay
-    tl.to(overlay, { opacity: 1, duration: 0.6, ease: 'power2.inOut' })
-
-    // Rewind: play images in reverse order, each from outside → center, getting faster
-    const total = imageInfos.length
-    const maxDriftY = -20
-    let dur = 0.4
-    const minDur = 0.12
-    let rewindIdx = 0
-
-    for (let i = total - 1; i >= 0; i--) {
-      const img = imgs[i]
-      const dir = directions[imageInfos[i].dirIdx]
-      const startX = typeof dir.x === 'function' ? dir.x() : dir.x
-      const progress = (rewindIdx + 1) / total
-      const gray = Math.pow(progress, 0.5)
-      const driftY = maxDriftY * Math.pow(progress, 2)
-      const driftYpx = (driftY / 100) * window.innerHeight
-
-      // Set to scattered position
-      tl.set(img, {
-        opacity: 0,
-        scale: 1.5,
-        x: startX,
-        y: dir.y,
-        rotateY: dir.rotateY,
-        rotateX: dir.rotateX,
-        filter: `grayscale(${gray})`,
-      })
-
-      // Fly in from outside to converge point
-      tl.to(img, {
-        opacity: 1,
-        scale: 1,
-        x: 0,
-        y: driftYpx,
-        rotateY: 0,
-        rotateX: 0,
-        duration: dur * 0.95,
-        ease: 'power2.out',
-      })
-
-      // Shrink and fade
-      tl.to(img, {
-        opacity: 0,
-        scale: 0.3,
-        duration: dur * 0.05,
-        ease: 'power2.in',
-      })
-
-      dur = Math.max(minDur, dur * 0.87)
-      rewindIdx++
-    }
-
-    // Reveal final image / video
-    tl.to(finalImg, {
+    // Fade in overlay, then start video
+    gsap.to(overlay, {
       opacity: 1,
-      scale: 1,
-      duration: 0.4,
+      duration: 0.6,
       ease: 'power2.inOut',
       onComplete: () => {
-        // Start video playback if enabled
-        if (finalVideoRef.current) {
-          finalVideoRef.current.play().catch(() => {})
+        // Show entrance text shortly after overlay is visible
+        if (FINAL_TEXT_ENABLED && entranceText) {
+          const textDelay = FIRST_ROUND_ENABLED ? 3.24 : 1.5
+          gsap.to(entranceText, { opacity: 1, duration: 0.8, ease: 'power2.out', delay: textDelay })
         }
-        if (!HEAT_HAZE_ENABLED) return
-        // Start SVG turbulence animation
-        const turbNode = turbRef.current
-        if (!turbNode) return
-        let t = 0
-        const interval = 1000 / HEAT_HAZE_FPS
-        let lastFrame = 0
-        const animate = (now) => {
-          hazeRafRef.current = requestAnimationFrame(animate)
-          if (now - lastFrame < interval) return
-          lastFrame = now
-          t += 0.002
-          const bfX = 0.005 + Math.cos(t) * 0.003
-          const bfY = 0.01 + Math.sin(t * 0.7) * 0.005
-          turbNode.setAttribute('baseFrequency', `${bfX} ${bfY}`)
+
+        if (FIRST_ROUND_ENABLED && !STATIC_IMAGE_FALLBACK && firstVideo) {
+          firstVideo.play().catch(() => {})
+        } else if (!STATIC_IMAGE_FALLBACK && loopVideo) {
+          if (firstVideo) firstVideo.style.display = 'none'
+          loopVideo.style.display = ''
+          loopVideo.style.opacity = '0'
+          loopVideo.play().catch(() => {})
+          gsap.to(loopVideo, { opacity: 1, duration: 1, ease: 'power2.inOut' })
         }
-        hazeRafRef.current = requestAnimationFrame(animate)
       },
-    }, '-=0.2')
+    })
 
-    // Show poem lines one by one
-    if (FINAL_TEXT_ENABLED) {
-      const poemLines = poemRef.current?.querySelectorAll('.poem-line')
-      if (poemLines?.length) {
-        poemLines.forEach((line, i) => {
-          tl.to(line, {
-            opacity: 1,
-            y: 0,
-            duration: 1,
-            ease: 'power2.out',
-          }, i === 0 ? '+=1.2' : '+=0.6')
-        })
-      }
-
-      // Show entrance text after delay
-      tl.to(entranceText, {
-        opacity: 1,
-        y: 0,
-        duration: 0.8,
-        ease: 'power2.out',
-      }, '+=1.5')
+    // When first video ends, seamlessly switch to looping video
+    if (FIRST_ROUND_ENABLED && !STATIC_IMAGE_FALLBACK && firstVideo && loopVideo) {
+      firstVideo.addEventListener('ended', () => {
+        firstVideo.style.display = 'none'
+        loopVideo.style.display = ''
+        loopVideo.play().catch(() => {})
+      }, { once: true })
     }
   }, [])
 
@@ -507,156 +394,47 @@ export default function MainScroll() {
           pointerEvents: 'none',
         }}
       >
-        {imageInfos.map((info, i) => (
+        {STATIC_IMAGE_FALLBACK ? (
           <img
-            key={i}
-            className="rewind-img"
-            src={`/images/${info.src}.webp`}
+            src={`/images/${finalImage}.png`}
             alt=""
             style={{
               position: 'absolute',
-              width: 'clamp(200px, 60vw, 480px)',
-              height: 'clamp(200px, 60vw, 480px)',
+              width: '100%',
+              height: '100%',
               objectFit: 'cover',
-              borderRadius: '16px',
-              transformOrigin: 'center center',
-              filter: 'brightness(1.4)',
-              willChange: 'transform, opacity',
-              maskImage: 'radial-gradient(ellipse 70% 50% at center, black 20%, transparent 100%)',
-              WebkitMaskImage: 'radial-gradient(ellipse 80% 50% at center, black 70%, transparent 100%)',
             }}
           />
-        ))}
-        {/* Final image wrapper — contains sharp base + SVG haze overlay */}
-        <div
-          ref={finalImgRef}
+        ) : (<>
+        <video
+          ref={firstVideoRef}
+          src={FINAL_VIDEO_FIRST_SRC}
+          muted
+          playsInline
+          preload="auto"
           style={{
             position: 'absolute',
             width: '100%',
             height: '100%',
+            objectFit: 'cover',
           }}
-        >
-          {/* Sharp base layer — video or static image */}
-          {useVideo ? (
-            <video
-              ref={finalVideoRef}
-              src={FINAL_VIDEO_SRC}
-              muted
-              loop
-              playsInline
-              preload="auto"
-              style={{
-                position: 'absolute',
-                width: '100%',
-                height: '100%',
-                objectFit: 'cover',
-              }}
-            />
-          ) : (
-            <img
-              src={`/images/${finalImage}.png`}
-              alt=""
-              style={{
-                position: 'absolute',
-                width: '100%',
-                height: '100%',
-                objectFit: 'cover',
-              }}
-            />
-          )}
-          {/* SVG heat haze overlay — clipped to bottom portion (only with static image) */}
-          {HEAT_HAZE_ENABLED && !useVideo && (
-            <>
-              <svg style={{ position: 'absolute', width: 0, height: 0 }}>
-                <defs>
-                  <filter id="heatHaze">
-                    <feTurbulence
-                      ref={turbRef}
-                      type="fractalNoise"
-                      baseFrequency="0.005 0.01"
-                      numOctaves="3"
-                      seed="2"
-                      result="noise"
-                    />
-                    <feDisplacementMap
-                      in="SourceGraphic"
-                      in2="noise"
-                      scale="18"
-                      xChannelSelector="R"
-                      yChannelSelector="G"
-                    />
-                  </filter>
-                </defs>
-              </svg>
-              <img
-                src={`/images/${finalImage}.png`}
-                alt=""
-                style={{
-                  position: 'absolute',
-                  width: '100%',
-                  height: '100%',
-                  objectFit: 'cover',
-                  filter: 'url(#heatHaze)',
-                  clipPath: `inset(${HEAT_HAZE_START_Y}% 0 0 0)`,
-                  WebkitClipPath: `inset(${HEAT_HAZE_START_Y}% 0 0 0)`,
-                }}
-              />
-            </>
-          )}
-        </div>
-        {/* Final poem — black text with white outline */}
-        {FINAL_TEXT_ENABLED && <div
-          ref={poemRef}
+        />
+        <video
+          ref={loopVideoRef}
+          src={FINAL_VIDEO_LOOP_SRC}
+          muted
+          loop
+          playsInline
+          preload="auto"
           style={{
             position: 'absolute',
-            top: `${FINAL_POEM_TOP_Y}%`,
-            left: '50%',
-            transform: 'translateX(-50%)',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            gap: '0.6em',
-            zIndex: 10,
-            pointerEvents: 'none',
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover',
+            display: 'none',
           }}
-        >
-          {FINAL_POEM_LINES.map((line, i) => (
-            <span
-              key={i}
-              className="poem-line"
-              style={{
-                opacity: 0,
-                // transform: 'translateY(12px)',
-                fontSize: 'clamp(0.9rem, 5.6vw, 1.3rem)',
-                fontWeight: '300',
-                letterSpacing: '0.15em',
-                color: '#ffffff',
-                WebkitTextStroke: '0.1px rgba(255, 255, 255, 0.9)',
-                textShadow: '0 0 32px rgba(0, 0, 0, 0.9), 0 0 32px rgba(0, 0, 0, 0.9)',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              {line}
-            </span>
-          ))}
-          {FINAL_POEM_CITE && (
-            <span
-              className="poem-line"
-              style={{
-                opacity: 0,
-                marginTop: '0.8em',
-                fontSize: 'clamp(0.65rem, 3.7vw, 1.2rem)',
-                fontWeight: '600',
-                letterSpacing: '0.12em',
-                color: 'rgba(255,255,255,0.9)',
-                textShadow: '0 0 64px rgba(0,0,0,0.5)',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              {FINAL_POEM_CITE}
-            </span>
-          )}
-        </div>}
+        />
+        </>)}
         {FINAL_TEXT_ENABLED && <div
           ref={entranceTextRef}
           style={{
