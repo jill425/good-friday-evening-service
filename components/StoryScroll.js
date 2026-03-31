@@ -183,54 +183,7 @@ export default function MainScroll() {
     overlay.style.pointerEvents = 'auto'
     overlay.style.opacity = '1'
 
-    // Show loading indicator while rewind images finish downloading
-    const loadingEl = document.createElement('div')
-    loadingEl.style.cssText = [
-      'position:absolute', 'inset:0', 'display:flex', 'flex-direction:column',
-      'align-items:center', 'justify-content:center', 'gap:1rem',
-      'color:rgba(255,255,255,0.45)', 'font-size:0.8rem', 'letter-spacing:0.2em',
-      'font-family:sans-serif', 'z-index:10',
-    ].join(';')
-    loadingEl.innerHTML = `
-      <div id="ldr-spinner" style="width:24px;height:24px;border:2px solid rgba(255,255,255,0.15);border-top-color:rgba(255,255,255,0.7);border-radius:50%"></div>
-      <style>#ldr-spinner{animation:ldr-spin 0.9s linear infinite}@keyframes ldr-spin{to{transform:rotate(360deg)}}</style>
-      <div style="display:flex;flex-direction:column;align-items:center;gap:0.4rem">
-        <span id="ldr-text">下載中</span>
-        <div id="ldr-bar-wrap" style="width:120px;height:2px;background:rgba(255,255,255,0.1);border-radius:2px;overflow:hidden">
-          <div id="ldr-bar" style="height:100%;width:0%;background:rgba(255,255,255,0.6);border-radius:2px;transition:width 0.2s ease"></div>
-        </div>
-        <span id="ldr-count" style="font-size:0.7rem;opacity:0.5">0 / 0</span>
-      </div>
-    `
-    overlay.appendChild(loadingEl)
-
-    const rewindImgs = Array.from(overlay.querySelectorAll('.rewind-img'))
-    const allImgs = [...rewindImgs]
-    const finalSrc = `/images/${finalImage}.webp`
-    const finalPreload = new Image()
-    finalPreload.src = finalSrc
-    allImgs.push(finalPreload)
-
-    const total = allImgs.length
-    let loaded = 0
-    const ldrBar = loadingEl.querySelector('#ldr-bar')
-    const ldrCount = loadingEl.querySelector('#ldr-count')
-    ldrCount.textContent = `0 / ${total}`
-
-    const onOneLoaded = () => {
-      loaded++
-      const pct = Math.round((loaded / total) * 100)
-      ldrBar.style.width = `${pct}%`
-      ldrCount.textContent = `${loaded} / ${total}`
-    }
-
-    const waitForImages = Promise.all(allImgs.map(img => {
-      if (img.complete) { onOneLoaded(); return Promise.resolve() }
-      return new Promise(res => {
-        img.addEventListener('load', () => { onOneLoaded(); res() }, { once: true })
-        img.addEventListener('error', () => { onOneLoaded(); res() }, { once: true })
-      })
-    }))
+    // ...已移除 loading indicator 相關程式...
 
     // Fade out background music, start journey BGM with Web Audio API (iOS volume fix)
     window.dispatchEvent(new Event('journey-start'))
