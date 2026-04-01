@@ -250,7 +250,9 @@ export default function MainScroll() {
       duration: 0.6,
       ease: 'power2.inOut',
       onComplete: () => {
-        if (FIRST_ROUND_ENABLED && !STATIC_IMAGE_FALLBACK && firstVideo) {
+        // If slow network detected during preload, skip first_round
+        const skipFirst = window.__skipFirstRound === true
+        if (FIRST_ROUND_ENABLED && !skipFirst && !STATIC_IMAGE_FALLBACK && firstVideo) {
           // Play video — start immediately if buffered, otherwise wait briefly
           let started = false
           const startFirstVideo = () => {

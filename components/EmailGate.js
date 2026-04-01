@@ -4,6 +4,69 @@ import { useState, useEffect } from 'react'
 
 const GOOGLE_SCRIPT_URL = process.env.NEXT_PUBLIC_GOOGLE_SCRIPT_URL || 'YOUR_GOOGLE_SCRIPT_URL_HERE' // 請在環境變數中設定
 
+// ── 影片預載設定 ──
+const PRELOAD_FIRST_VIDEO_ON_GATE = true              // true = email 送出後就開始下載 first_round，完成後才進入
+const FIRST_VIDEO_SRC = '/final_video_first_round.mp4'
+const PRELOAD_TIMEOUT = 15000                          // 最久等 15 秒，超時則跳過 first_round
+const SLOW_NET_SKIP = true                             // true = 偵測到慢網路直接跳過 first_round
+
+/** 偵測是否為慢網路（2G / slow-3G / saveData） */
+function isSlowNetwork() {
+  if (!SLOW_NET_SKIP) return false
+  const conn = navigator?.connection || navigator?.mozConnection || navigator?.webkitConnection
+  if (!conn) return false
+  if (conn.saveData) return true
+  const ect = conn.effectiveType
+  if (ect === 'slow-2g' || ect === '2g') return true
+  return false
+}
+
+/** 預載 first_round 影片，回傳 promise。若太慢或超時，設 skip flag */
+function preloadFirstVideo() {
+  if (!PRELOAD_FIRST_VIDEO_ON_GATE) return Promise.resolve()
+
+  // 慢網路直接跳過
+  if (isSlowNetwork()) {
+    window.__skipFirstRound = true
+    return Promise.resolve()
+  }
+
+  return new Promise((resolve) => {
+    const start = Date.now()
+    const video = document.createElement('video')
+    video.preload = 'auto'
+    video.muted = true
+    video.playsInline = true
+    video.src = FIRST_VIDEO_SRC
+
+    const done = (skip) => {
+      if (skip) window.__skipFirstRound = true
+      video.removeAttribute('src')
+      video.load() // release memory
+      resolve()
+    }
+
+    // 在前 5 秒內檢查下載進度，若太慢就標記跳過
+    const speedCheckTimer = setTimeout(() => {
+      const elapsed = (Date.now() - start) / 1000
+      if (video.readyState < 3 && elapsed >= 5) {
+        done(true) // 5 秒都還沒 ready → 太慢，跳過
+      }
+    }, 5000)
+
+    video.addEventListener('canplaythrough', () => {
+      clearTimeout(speedCheckTimer)
+      done(false) // 完整載入成功
+    }, { once: true })
+
+    // 總超時保底
+    setTimeout(() => {
+      clearTimeout(speedCheckTimer)
+      done(video.readyState < 3) // 若還沒載完就跳過
+    }, PRELOAD_TIMEOUT)
+  })
+}
+
 export default function EmailGate({ onUnlock }) {
   const isDev = process.env.NODE_ENV === 'development'
   const [hydrated, setHydrated] = useState(false)
@@ -45,7 +108,7 @@ export default function EmailGate({ onUnlock }) {
     if (isDev) {
       setStatus('success')
       setMessage('（Dev 模式）即將進入...')
-      ensureAudioPreloaded().then(() => {
+      Promise.all([ensureAudioPreloaded(), preloadFirstVideo()]).then(() => {
         setIsVisible(false)
         if (onUnlock) onUnlock()
       })
@@ -63,7 +126,7 @@ export default function EmailGate({ onUnlock }) {
       setStatus('success')
       setMessage('感謝您的參與！')
       localStorage.setItem('email_gate_unlocked', 'true')
-      ensureAudioPreloaded().then(() => {
+      Promise.all([ensureAudioPreloaded(), preloadFirstVideo()]).then(() => {
         setIsVisible(false)
         if (onUnlock) onUnlock()
       })
@@ -88,9 +151,10 @@ export default function EmailGate({ onUnlock }) {
       setMessage('感謝您的參與！')
       localStorage.setItem('email_gate_unlocked', 'true')
 
-      // Preload audio files before entering — wait at least 1.5s for UX
-      const [,] = await Promise.all([
+      // Preload audio + video before entering — wait at least 1.5s for UX
+      await Promise.all([
         ensureAudioPreloaded(),
+        preloadFirstVideo(),
         new Promise(r => setTimeout(r, 1500)),
       ])
 
