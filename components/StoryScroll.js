@@ -237,26 +237,44 @@ export default function MainScroll() {
     const firstVideo = firstVideoRef.current
     const loopVideo = loopVideoRef.current
 
-    // Fade in overlay, then start video
+    // Helper: show entrance text with delay
+    const showEntranceText = (delay) => {
+      if (FINAL_TEXT_ENABLED && entranceText) {
+        gsap.to(entranceText, { opacity: 1, duration: 0.8, ease: 'power2.out', delay })
+      }
+    }
+
+    // Fade in overlay (black), then start video when ready
     gsap.to(overlay, {
       opacity: 1,
       duration: 0.6,
       ease: 'power2.inOut',
       onComplete: () => {
-        // Show entrance text shortly after overlay is visible
-        if (FINAL_TEXT_ENABLED && entranceText) {
-          const textDelay = FIRST_ROUND_ENABLED ? 3.24 : 1.5
-          gsap.to(entranceText, { opacity: 1, duration: 0.8, ease: 'power2.out', delay: textDelay })
-        }
-
         if (FIRST_ROUND_ENABLED && !STATIC_IMAGE_FALLBACK && firstVideo) {
-          firstVideo.play().catch(() => {})
+          // Play video — start immediately if buffered, otherwise wait briefly
+          let started = false
+          const startFirstVideo = () => {
+            if (started) return
+            started = true
+            firstVideo.play().catch(() => {})
+            showEntranceText(3.24)
+          }
+          if (firstVideo.readyState >= 3) {
+            startFirstVideo()
+          } else {
+            firstVideo.addEventListener('canplay', startFirstVideo, { once: true })
+            // Fallback: don't stay black forever if event never fires
+            setTimeout(startFirstVideo, 2000)
+          }
         } else if (!STATIC_IMAGE_FALLBACK && loopVideo) {
           if (firstVideo) firstVideo.style.display = 'none'
           loopVideo.style.display = ''
           loopVideo.style.opacity = '0'
           loopVideo.play().catch(() => {})
           gsap.to(loopVideo, { opacity: 1, duration: 1, ease: 'power2.inOut' })
+          showEntranceText(1.5)
+        } else {
+          showEntranceText(1.5)
         }
       },
     })
