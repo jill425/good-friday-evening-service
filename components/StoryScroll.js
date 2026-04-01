@@ -282,12 +282,21 @@ export default function MainScroll() {
       },
     })
 
-    // When first video ends, seamlessly switch to looping video
+    // When first video ends, show fallback image then switch to looping video
     if (FIRST_ROUND_ENABLED && !STATIC_IMAGE_FALLBACK && firstVideo && loopVideo) {
       firstVideo.addEventListener('ended', () => {
         firstVideo.style.display = 'none'
-        loopVideo.style.display = ''
-        loopVideo.play().catch(() => {})
+        // fallback image is already visible underneath
+        const startLoop = () => {
+          loopVideo.style.display = ''
+          loopVideo.play().catch(() => {})
+        }
+        if (loopVideo.readyState >= 3) {
+          startLoop()
+        } else {
+          loopVideo.addEventListener('canplay', startLoop, { once: true })
+          if (loopVideo.preload === 'metadata') loopVideo.load()
+        }
       }, { once: true })
     }
   }, [])
@@ -432,6 +441,17 @@ export default function MainScroll() {
             }}
           />
         ) : (<>
+        <img
+          src="/images/final.webp"
+          alt=""
+          style={{
+            position: 'absolute',
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover',
+            zIndex: 0,
+          }}
+        />
         <video
           ref={firstVideoRef}
           src={FINAL_VIDEO_FIRST_SRC}
@@ -443,6 +463,7 @@ export default function MainScroll() {
             width: '100%',
             height: '100%',
             objectFit: 'cover',
+            zIndex: 1,
           }}
         />
         <video
@@ -458,6 +479,7 @@ export default function MainScroll() {
             height: '100%',
             objectFit: 'cover',
             display: 'none',
+            zIndex: 1,
           }}
         />
         </>)}
