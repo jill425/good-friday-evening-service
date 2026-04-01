@@ -8,7 +8,7 @@ import styles from './StoryScroll.module.css'
 
 // ── Final video config ──
 const STATIC_IMAGE_FALLBACK = false                           // true = 不播影片，只顯示靜態圖 final.png, false = 播影片
-const FIRST_ROUND_ENABLED = true                              // true = 先播 first_round 再接 loop, false = 直接播 loop
+const FIRST_ROUND_ENABLED = false                              // true = 先播 first_round 再接 loop, false = 直接播 loop
 const FINAL_VIDEO_FIRST_SRC = '/final_video_first_round.mp4'  // 第一段影片（含 rewind 效果）
 const FINAL_VIDEO_LOOP_SRC = '/final_video_rotate.mp4'        // 第二段影片（無限循環）
 
