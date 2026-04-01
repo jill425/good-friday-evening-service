@@ -116,6 +116,26 @@ function waitForFonts() {
   ])
 }
 
+/** 預載 rotate video 前 5MB — 灌進 HTTP cache，讓開頭幾秒無縫銜接 */
+const ROTATE_PRELOAD_BYTES = 5 * 1024 * 1024 // 5MB
+let _rotateStarted = false
+function preloadRotateVideo() {
+  if (_rotateStarted) return
+  _rotateStarted = true
+  fetch('/final_video_rotate.mp4').then(res => {
+    if (!res.ok || !res.body) return
+    const reader = res.body.getReader()
+    let loaded = 0
+    const pump = () => reader.read().then(({ done, value }) => {
+      if (done) return
+      loaded += value.byteLength
+      if (loaded < ROTATE_PRELOAD_BYTES) pump()
+      else reader.cancel() // 夠了，停止下載
+    })
+    pump()
+  }).catch(() => {})
+}
+
 export default function EmailGate({ onUnlock }) {
   const isDev = process.env.NODE_ENV === 'development'
   const [hydrated, setHydrated] = useState(false)
@@ -132,6 +152,7 @@ export default function EmailGate({ onUnlock }) {
     // 網頁 init 就開始預載影片和所有 slide 圖
     preloadFirstVideo()
     preloadSlideImages()
+    preloadRotateVideo()
   }, [])
 
   // 點擊 email 輸入框時再次確認預載啟動
@@ -139,6 +160,7 @@ export default function EmailGate({ onUnlock }) {
     ensureAudioPreloaded()
     preloadFirstVideo()
     preloadSlideImages()
+    preloadRotateVideo()
   }
 
   const handleSubmit = async (e) => {
