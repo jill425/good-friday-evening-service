@@ -33,6 +33,13 @@ export default function MainScroll() {
   const journeyBgmRef = useRef(null)
   const audioCtxRef = useRef(null)
 
+  // Use blob URL if preloaded, otherwise fall back to file path
+  useEffect(() => {
+    if (window.__firstVideoBlobURL && firstVideoRef.current) {
+      firstVideoRef.current.src = window.__firstVideoBlobURL
+    }
+  }, [])
+
   // Preload audio on mount
   useEffect(() => {
     if (journeyBgmRef.current) return

@@ -43,14 +43,18 @@ function preloadFirstVideo() {
       resolve()
     }
 
-    // 用 fetch 下載到 HTTP cache，讓 <video> 元素之後能從 cache 讀
+    // 下載影片 blob 並存成 Object URL，讓 <video> 直接從記憶體讀
     fetch(FIRST_VIDEO_SRC)
       .then(res => {
         if (!res.ok) { done(true); return }
-        // 讀完整個 body 確保完整進 cache
         return res.blob()
       })
-      .then(() => done(false))
+      .then(blob => {
+        if (blob) {
+          window.__firstVideoBlobURL = URL.createObjectURL(blob)
+        }
+        done(false)
+      })
       .catch(() => done(true))
 
     // 在前 5 秒內檢查 — 若 fetch 還沒完成就標記太慢
