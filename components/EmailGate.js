@@ -35,7 +35,6 @@ function preloadFirstVideo() {
   }
 
   _videoPreloadPromise = new Promise((resolve) => {
-    const start = Date.now()
     let settled = false
     const done = (skip) => {
       if (settled) return
@@ -58,18 +57,31 @@ function preloadFirstVideo() {
       })
       .catch(() => done(true))
 
-    // 在前 5 秒內檢查 — 若 fetch 還沒完成就標記太慢
-    setTimeout(() => {
-      if (!settled) {
-        const elapsed = (Date.now() - start) / 1000
-        if (elapsed >= 5) done(true)
-      }
-    }, 5000)
-
     // 總超時保底
     setTimeout(() => done(true), PRELOAD_TIMEOUT)
   })
   return _videoPreloadPromise
+}
+
+/** 預載音檔 — module level singleton，不會重複下載 */
+let _audioPreloadPromise = null
+function _ensureAudioPreloaded() {
+  if (_audioPreloadPromise) return _audioPreloadPromise
+  _audioPreloadPromise = Promise.all([
+    // sorroww.m4a → blob URL（保證記憶體裡有）
+    fetch('/sorroww.m4a')
+      .then(r => r.ok ? r.blob() : null)
+      .then(blob => { if (blob) window.__sorrowBlobURL = URL.createObjectURL(blob) })
+      .catch(() => {}),
+    // cello-circle.m4a → 只暖 HTTP cache（BackgroundMusic 用 DOM <audio>）
+    fetch('/cello-circle.m4a').then(r => r.blob()).catch(() => {}),
+  ])
+  // 保底 8 秒
+  _audioPreloadPromise = Promise.race([
+    _audioPreloadPromise,
+    new Promise(r => setTimeout(r, 8000)),
+  ])
+  return _audioPreloadPromise
 }
 
 /** 預載所有 slide 圖片 + final.webp — 呼叫多次安全 */
@@ -104,26 +116,7 @@ export default function EmailGate({ onUnlock }) {
   const [status, setStatus] = useState('idle') // idle, submitting, success, error
   const [message, setMessage] = useState('')
 
-  // Preload audio files — shared promise so it only runs once
-  const audioReadyRef = { current: null }
-  const ensureAudioPreloaded = () => {
-    if (audioReadyRef.current) return audioReadyRef.current
-    audioReadyRef.current = Promise.all([
-      // sorroww.m4a → blob URL（保證記憶體裡有）
-      fetch('/sorroww.m4a')
-        .then(r => r.ok ? r.blob() : null)
-        .then(blob => { if (blob) window.__sorrowBlobURL = URL.createObjectURL(blob) })
-        .catch(() => {}),
-      // cello-circle.m4a → 只暖 HTTP cache（BackgroundMusic 用 DOM <audio>）
-      fetch('/cello-circle.m4a').then(r => r.blob()).catch(() => {}),
-    ])
-    // 保底 8 秒
-    audioReadyRef.current = Promise.race([
-      audioReadyRef.current,
-      new Promise(r => setTimeout(r, 8000)),
-    ])
-    return audioReadyRef.current
-  }
+  const ensureAudioPreloaded = _ensureAudioPreloaded
 
   useEffect(() => {
     setHydrated(true)

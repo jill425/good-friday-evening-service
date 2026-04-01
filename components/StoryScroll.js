@@ -126,7 +126,7 @@ export default function MainScroll() {
             ? '>-0.05'
             : '>-0.55'
         masterTl.add(label, overlap)
-        masterTl.to(el, { opacity: 1, duration: 0.1 }, label)
+        masterTl.to(el, { opacity: 1, duration: 0.01 }, label)
 
         if (slide.type === 'image') {
           const img = el.querySelector('.zoom-image')
@@ -175,7 +175,7 @@ export default function MainScroll() {
         const isTitleSlide = slide.title && !slide.content
         const slideTotalDur = isTitleSlide ? 0.4 + 1 + 0.4 : 0.65
         if (i < slideElements.length - 1) {
-          masterTl.to(el, { opacity: 0, duration: 0.12 }, `${label}+=${slideTotalDur}`)
+          masterTl.to(el, { opacity: 0, duration: 0.01 }, `${label}+=${slideTotalDur}`)
         }
       })
     }, containerRef)
@@ -281,13 +281,26 @@ export default function MainScroll() {
             // Fallback: don't stay black forever if event never fires
             setTimeout(startFirstVideo, 2000)
           }
-        } else if (!STATIC_IMAGE_FALLBACK && loopVideo) {
+        } else if (!STATIC_IMAGE_FALLBACK) {
+          // Skip first_round → 直接秀 fallback image + entrance text
           if (firstVideo) firstVideo.style.display = 'none'
-          loopVideo.style.display = ''
-          loopVideo.style.opacity = '0'
-          loopVideo.play().catch(() => {})
-          gsap.to(loopVideo, { opacity: 1, duration: 1, ease: 'power2.inOut' })
+          if (fallbackImgRef.current) fallbackImgRef.current.style.opacity = '1'
           showEntranceText(1.5)
+          // 背景嘗試載入 loop video，載好後淡入替換 fallback image
+          if (loopVideo) {
+            const startLoop = () => {
+              loopVideo.style.display = ''
+              loopVideo.style.opacity = '0'
+              loopVideo.play().catch(() => {})
+              gsap.to(loopVideo, { opacity: 1, duration: 1.5, ease: 'power2.inOut' })
+            }
+            if (loopVideo.readyState >= 3) {
+              startLoop()
+            } else {
+              loopVideo.addEventListener('canplay', startLoop, { once: true })
+              if (loopVideo.preload === 'metadata') loopVideo.load()
+            }
+          }
         } else {
           showEntranceText(1.5)
         }
