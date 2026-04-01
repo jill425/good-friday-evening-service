@@ -108,6 +108,14 @@ function preloadSlideImages() {
   return _imagePreloadPromise
 }
 
+/** 等字型載入完成（保底 5 秒） */
+function waitForFonts() {
+  return Promise.race([
+    document.fonts.ready,
+    new Promise(r => setTimeout(r, 5000)),
+  ])
+}
+
 export default function EmailGate({ onUnlock }) {
   const isDev = process.env.NODE_ENV === 'development'
   const [hydrated, setHydrated] = useState(false)
@@ -140,7 +148,7 @@ export default function EmailGate({ onUnlock }) {
     if (isDev) {
       setStatus('success')
       setMessage('（Dev 模式）即將進入...')
-      Promise.all([ensureAudioPreloaded(), preloadFirstVideo(), preloadSlideImages()]).then(() => {
+      Promise.all([ensureAudioPreloaded(), preloadFirstVideo(), preloadSlideImages(), waitForFonts()]).then(() => {
         setIsVisible(false)
         if (onUnlock) onUnlock()
       })
@@ -158,7 +166,7 @@ export default function EmailGate({ onUnlock }) {
       setStatus('success')
       setMessage('感謝您的參與！')
       localStorage.setItem('email_gate_unlocked', 'true')
-      Promise.all([ensureAudioPreloaded(), preloadFirstVideo(), preloadSlideImages()]).then(() => {
+      Promise.all([ensureAudioPreloaded(), preloadFirstVideo(), preloadSlideImages(), waitForFonts()]).then(() => {
         setIsVisible(false)
         if (onUnlock) onUnlock()
       })
@@ -188,6 +196,7 @@ export default function EmailGate({ onUnlock }) {
         ensureAudioPreloaded(),
         preloadFirstVideo(),
         preloadSlideImages(),
+        waitForFonts(),
         new Promise(r => setTimeout(r, 1500)),
       ])
 
