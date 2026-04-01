@@ -22,7 +22,9 @@ function isSlowNetwork() {
 }
 
 /** 預載 first_round 影片，回傳 promise。若太慢或超時，設 skip flag */
+let _videoPreloadPromise = null
 function preloadFirstVideo() {
+  if (_videoPreloadPromise) return _videoPreloadPromise
   if (!PRELOAD_FIRST_VIDEO_ON_GATE) return Promise.resolve()
 
   // 慢網路直接跳過
@@ -31,7 +33,7 @@ function preloadFirstVideo() {
     return Promise.resolve()
   }
 
-  return new Promise((resolve) => {
+  _videoPreloadPromise = new Promise((resolve) => {
     const start = Date.now()
     const video = document.createElement('video')
     video.preload = 'auto'
@@ -65,6 +67,21 @@ function preloadFirstVideo() {
       done(video.readyState < 3) // 若還沒載完就跳過
     }, PRELOAD_TIMEOUT)
   })
+  return _videoPreloadPromise
+}
+
+/** 預載 final.webp 墊底圖 — 呼叫多次安全 */
+let _imagePreloadPromise = null
+function preloadFinalImage() {
+  if (_imagePreloadPromise) return _imagePreloadPromise
+  _imagePreloadPromise = new Promise((resolve) => {
+    const img = new Image()
+    img.onload = resolve
+    img.onerror = resolve
+    img.src = '/images/final.webp'
+    setTimeout(resolve, 10000)
+  })
+  return _imagePreloadPromise
 }
 
 export default function EmailGate({ onUnlock }) {
@@ -94,11 +111,16 @@ export default function EmailGate({ onUnlock }) {
   useEffect(() => {
     setHydrated(true)
     ensureAudioPreloaded()
+    // 網頁 init 就開始預載影片和墊底圖
+    preloadFirstVideo()
+    preloadFinalImage()
   }, [])
 
-  // Also preload on input focus as a fallback
+  // 點擊 email 輸入框時再次確認預載啟動
   const handleInputFocus = () => {
     ensureAudioPreloaded()
+    preloadFirstVideo()
+    preloadFinalImage()
   }
 
   const handleSubmit = async (e) => {
@@ -108,7 +130,7 @@ export default function EmailGate({ onUnlock }) {
     if (isDev) {
       setStatus('success')
       setMessage('（Dev 模式）即將進入...')
-      Promise.all([ensureAudioPreloaded(), preloadFirstVideo()]).then(() => {
+      Promise.all([ensureAudioPreloaded(), preloadFirstVideo(), preloadFinalImage()]).then(() => {
         setIsVisible(false)
         if (onUnlock) onUnlock()
       })
@@ -126,7 +148,7 @@ export default function EmailGate({ onUnlock }) {
       setStatus('success')
       setMessage('感謝您的參與！')
       localStorage.setItem('email_gate_unlocked', 'true')
-      Promise.all([ensureAudioPreloaded(), preloadFirstVideo()]).then(() => {
+      Promise.all([ensureAudioPreloaded(), preloadFirstVideo(), preloadFinalImage()]).then(() => {
         setIsVisible(false)
         if (onUnlock) onUnlock()
       })
@@ -151,10 +173,11 @@ export default function EmailGate({ onUnlock }) {
       setMessage('感謝您的參與！')
       localStorage.setItem('email_gate_unlocked', 'true')
 
-      // Preload audio + video before entering — wait at least 1.5s for UX
+      // Preload audio + video + image before entering — wait at least 1.5s for UX
       await Promise.all([
         ensureAudioPreloaded(),
         preloadFirstVideo(),
+        preloadFinalImage(),
         new Promise(r => setTimeout(r, 1500)),
       ])
 

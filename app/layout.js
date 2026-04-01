@@ -17,6 +17,10 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <html lang="zh-Hant">
+      <head>
+        <link rel="preload" href="/images/final.webp" as="image" />
+        <link rel="preload" href="/final_video_first_round.mp4" as="video" />
+      </head>
       <body className={notoSerifTC.className}>
         <BackgroundMusic />
         {children}

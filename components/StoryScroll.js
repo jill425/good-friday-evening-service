@@ -29,6 +29,7 @@ export default function MainScroll() {
   const entranceTextRef = useRef(null)
   const firstVideoRef = useRef(null)
   const loopVideoRef = useRef(null)
+  const fallbackImgRef = useRef(null)
   const journeyBgmRef = useRef(null)
   const audioCtxRef = useRef(null)
 
@@ -289,10 +290,13 @@ export default function MainScroll() {
     if (FIRST_ROUND_ENABLED && !STATIC_IMAGE_FALLBACK && firstVideo && loopVideo) {
       firstVideo.addEventListener('ended', () => {
         firstVideo.style.display = 'none'
-        // fallback image is already visible underneath
+        // Show fallback image as bridge
+        if (fallbackImgRef.current) fallbackImgRef.current.style.opacity = '1'
         const startLoop = () => {
           loopVideo.style.display = ''
           loopVideo.play().catch(() => {})
+          // Hide fallback once loop is playing
+          if (fallbackImgRef.current) fallbackImgRef.current.style.opacity = '0'
         }
         if (loopVideo.readyState >= 3) {
           startLoop()
@@ -445,6 +449,7 @@ export default function MainScroll() {
           />
         ) : (<>
         <img
+          ref={fallbackImgRef}
           src="/images/final.webp"
           alt=""
           style={{
@@ -453,6 +458,7 @@ export default function MainScroll() {
             height: '100%',
             objectFit: 'cover',
             zIndex: 0,
+            opacity: 0,
           }}
         />
         <video
