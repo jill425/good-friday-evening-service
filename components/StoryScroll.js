@@ -347,7 +347,6 @@ export default function MainScroll() {
                 className="zoom-image"
                 src={`/images/${slide.src}.webp`}
                 alt={slide.src.toString()}
-                loading="lazy"
                 style={{
                   position: 'absolute',
                   width: 'clamp(200px, 60vw, 480px)',

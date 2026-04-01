@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { Slides } from '../data/slides'
 
 const GOOGLE_SCRIPT_URL = process.env.NEXT_PUBLIC_GOOGLE_SCRIPT_URL || 'YOUR_GOOGLE_SCRIPT_URL_HERE' // 請在環境變數中設定
 
@@ -71,17 +72,27 @@ function preloadFirstVideo() {
   return _videoPreloadPromise
 }
 
-/** 預載 final.webp 墊底圖 — 呼叫多次安全 */
+/** 預載所有 slide 圖片 + final.webp — 呼叫多次安全 */
 let _imagePreloadPromise = null
-function preloadFinalImage() {
+function preloadSlideImages() {
   if (_imagePreloadPromise) return _imagePreloadPromise
-  _imagePreloadPromise = new Promise((resolve) => {
-    const img = new Image()
-    img.onload = resolve
-    img.onerror = resolve
-    img.src = '/images/final.webp'
-    setTimeout(resolve, 10000)
-  })
+  const srcs = [
+    ...Slides.filter(s => s.type === 'image').map(s => `/images/${s.src}.webp`),
+    '/images/final.webp',
+  ]
+  _imagePreloadPromise = Promise.all(
+    srcs.map(src => new Promise((resolve) => {
+      const img = new Image()
+      img.onload = resolve
+      img.onerror = resolve
+      img.src = src
+    }))
+  )
+  // 保底 12 秒（14 張圖共 ~1.75MB）
+  _imagePreloadPromise = Promise.race([
+    _imagePreloadPromise,
+    new Promise(r => setTimeout(r, 12000)),
+  ])
   return _imagePreloadPromise
 }
 
@@ -117,16 +128,16 @@ export default function EmailGate({ onUnlock }) {
   useEffect(() => {
     setHydrated(true)
     ensureAudioPreloaded()
-    // 網頁 init 就開始預載影片和墊底圖
+    // 網頁 init 就開始預載影片和所有 slide 圖
     preloadFirstVideo()
-    preloadFinalImage()
+    preloadSlideImages()
   }, [])
 
   // 點擊 email 輸入框時再次確認預載啟動
   const handleInputFocus = () => {
     ensureAudioPreloaded()
     preloadFirstVideo()
-    preloadFinalImage()
+    preloadSlideImages()
   }
 
   const handleSubmit = async (e) => {
@@ -136,7 +147,7 @@ export default function EmailGate({ onUnlock }) {
     if (isDev) {
       setStatus('success')
       setMessage('（Dev 模式）即將進入...')
-      Promise.all([ensureAudioPreloaded(), preloadFirstVideo(), preloadFinalImage()]).then(() => {
+      Promise.all([ensureAudioPreloaded(), preloadFirstVideo(), preloadSlideImages()]).then(() => {
         setIsVisible(false)
         if (onUnlock) onUnlock()
       })
@@ -154,7 +165,7 @@ export default function EmailGate({ onUnlock }) {
       setStatus('success')
       setMessage('感謝您的參與！')
       localStorage.setItem('email_gate_unlocked', 'true')
-      Promise.all([ensureAudioPreloaded(), preloadFirstVideo(), preloadFinalImage()]).then(() => {
+      Promise.all([ensureAudioPreloaded(), preloadFirstVideo(), preloadSlideImages()]).then(() => {
         setIsVisible(false)
         if (onUnlock) onUnlock()
       })
@@ -183,7 +194,7 @@ export default function EmailGate({ onUnlock }) {
       await Promise.all([
         ensureAudioPreloaded(),
         preloadFirstVideo(),
-        preloadFinalImage(),
+        preloadSlideImages(),
         new Promise(r => setTimeout(r, 1500)),
       ])
 
