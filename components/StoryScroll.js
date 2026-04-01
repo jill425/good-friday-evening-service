@@ -257,8 +257,9 @@ export default function MainScroll() {
             if (started) return
             started = true
             firstVideo.play().catch(() => {})
-            showEntranceText(3.24)
           }
+          // Show entrance text only after video actually starts playing
+          firstVideo.addEventListener('playing', () => showEntranceText(3.24), { once: true })
           if (firstVideo.readyState >= 3) {
             startFirstVideo()
           } else {
@@ -448,7 +449,7 @@ export default function MainScroll() {
           muted
           loop
           playsInline
-          preload="auto"
+          preload="metadata"
           style={{
             position: 'absolute',
             width: '100%',
