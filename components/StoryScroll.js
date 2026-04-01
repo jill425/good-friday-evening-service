@@ -261,7 +261,10 @@ export default function MainScroll() {
             firstVideo.play().catch(() => {})
           }
           // Show entrance text only after video actually starts playing
-          firstVideo.addEventListener('playing', () => showEntranceText(3.24), { once: true })
+          firstVideo.addEventListener('playing', () => {
+            firstVideo.style.opacity = '1'
+            showEntranceText(3.24)
+          }, { once: true })
           if (firstVideo.readyState >= 3) {
             startFirstVideo()
           } else {
@@ -464,6 +467,7 @@ export default function MainScroll() {
             height: '100%',
             objectFit: 'cover',
             zIndex: 1,
+            opacity: 0,
           }}
         />
         <video
