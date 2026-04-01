@@ -6,25 +6,19 @@ import { Slides, finalImage } from '../data/slides'
 import ProgressBar from './ProgressBar'
 import styles from './StoryScroll.module.css'
 
-// ── Heat haze config ──
-const HEAT_HAZE_ENABLED = true   // true = 開啟空氣浮動特效, false = 關閉
-const HEAT_HAZE_START_Y = 40     // 從圖片高度的幾 % 開始有特效 (0 = 頂部, 100 = 底部)
-const HEAT_HAZE_FPS = 30         // haze 動畫幀率 (降低可省 GPU, 60 = 滿幀)
+// ── Final video config ──
+const STATIC_IMAGE_FALLBACK = false                           // true = 不播影片，只顯示靜態圖 final.png, false = 播影片
+const FIRST_ROUND_ENABLED = true                              // true = 先播 first_round 再接 loop, false = 直接播 loop
+const FINAL_VIDEO_FIRST_SRC = '/final_video_first_round.mp4'  // 第一段影片（含 rewind 效果）
+const FINAL_VIDEO_LOOP_SRC = '/final_video_rotate.mp4'        // 第二段影片（無限循環）
+
+// ── Final entrance text config ──
+const FINAL_TEXT_ENABLED = true   // true = 顯示「出示此畫面即可入場」, false = 隱藏
 
 const directions = [
   { x: () => window.innerWidth * 0.8, y: '-60%', rotateY: -25, rotateX: 12 },
   { x: () => -window.innerWidth * 0.8, y: '60%', rotateY: 25, rotateX: -12 },
 ]
-
-// Pre-compute image info (direction index for each image slide)
-const imageInfos = (() => {
-  let count = 0
-  return Slides.filter(s => s.type === 'image').map(s => {
-    const dirIdx = count % directions.length
-    count++
-    return { src: s.src, dirIdx }
-  })
-})()
 
 export default function MainScroll() {
   const containerRef = useRef(null)
@@ -32,17 +26,25 @@ export default function MainScroll() {
   const scrollHintRef = useRef(null)
   const journeyBtnRef = useRef(null)
   const rewindRef = useRef(null)
-  const finalImgRef = useRef(null)
   const entranceTextRef = useRef(null)
-  const turbRef = useRef(null)
-  const hazeRafRef = useRef(null)
+  const firstVideoRef = useRef(null)
+  const loopVideoRef = useRef(null)
+  const fallbackImgRef = useRef(null)
   const journeyBgmRef = useRef(null)
   const audioCtxRef = useRef(null)
 
-  // Preload audio files on mount so they're ready when needed
+  // Use blob URL if preloaded, otherwise fall back to file path
+  useEffect(() => {
+    if (window.__firstVideoBlobURL && firstVideoRef.current) {
+      firstVideoRef.current.src = window.__firstVideoBlobURL
+    }
+  }, [])
+
+  // Preload audio on mount — use blob URL if available
   useEffect(() => {
     if (journeyBgmRef.current) return
-    const bgm = new Audio('/sorroww.m4a')
+    const src = window.__sorrowBlobURL || '/sorroww.m4a'
+    const bgm = new Audio(src)
     bgm.preload = 'auto'
     journeyBgmRef.current = bgm
   }, [])
@@ -124,7 +126,7 @@ export default function MainScroll() {
             ? '>-0.05'
             : '>-0.55'
         masterTl.add(label, overlap)
-        masterTl.to(el, { opacity: 1, duration: 0.1 }, label)
+        masterTl.to(el, { opacity: 1, duration: 0.01 }, label)
 
         if (slide.type === 'image') {
           const img = el.querySelector('.zoom-image')
@@ -173,7 +175,7 @@ export default function MainScroll() {
         const isTitleSlide = slide.title && !slide.content
         const slideTotalDur = isTitleSlide ? 0.4 + 1 + 0.4 : 0.65
         if (i < slideElements.length - 1) {
-          masterTl.to(el, { opacity: 0, duration: 0.12 }, `${label}+=${slideTotalDur}`)
+          masterTl.to(el, { opacity: 0, duration: 0.01 }, `${label}+=${slideTotalDur}`)
         }
       })
     }, containerRef)
@@ -190,54 +192,7 @@ export default function MainScroll() {
     overlay.style.pointerEvents = 'auto'
     overlay.style.opacity = '1'
 
-    // Show loading indicator while rewind images finish downloading
-    const loadingEl = document.createElement('div')
-    loadingEl.style.cssText = [
-      'position:absolute', 'inset:0', 'display:flex', 'flex-direction:column',
-      'align-items:center', 'justify-content:center', 'gap:1rem',
-      'color:rgba(255,255,255,0.45)', 'font-size:0.8rem', 'letter-spacing:0.2em',
-      'font-family:sans-serif', 'z-index:10',
-    ].join(';')
-    loadingEl.innerHTML = `
-      <div id="ldr-spinner" style="width:24px;height:24px;border:2px solid rgba(255,255,255,0.15);border-top-color:rgba(255,255,255,0.7);border-radius:50%"></div>
-      <style>#ldr-spinner{animation:ldr-spin 0.9s linear infinite}@keyframes ldr-spin{to{transform:rotate(360deg)}}</style>
-      <div style="display:flex;flex-direction:column;align-items:center;gap:0.4rem">
-        <span id="ldr-text">下載中</span>
-        <div id="ldr-bar-wrap" style="width:120px;height:2px;background:rgba(255,255,255,0.1);border-radius:2px;overflow:hidden">
-          <div id="ldr-bar" style="height:100%;width:0%;background:rgba(255,255,255,0.6);border-radius:2px;transition:width 0.2s ease"></div>
-        </div>
-        <span id="ldr-count" style="font-size:0.7rem;opacity:0.5">0 / 0</span>
-      </div>
-    `
-    overlay.appendChild(loadingEl)
-
-    const rewindImgs = Array.from(overlay.querySelectorAll('.rewind-img'))
-    const allImgs = [...rewindImgs]
-    const finalSrc = `/images/${finalImage}.webp`
-    const finalPreload = new Image()
-    finalPreload.src = finalSrc
-    allImgs.push(finalPreload)
-
-    const total = allImgs.length
-    let loaded = 0
-    const ldrBar = loadingEl.querySelector('#ldr-bar')
-    const ldrCount = loadingEl.querySelector('#ldr-count')
-    ldrCount.textContent = `0 / ${total}`
-
-    const onOneLoaded = () => {
-      loaded++
-      const pct = Math.round((loaded / total) * 100)
-      ldrBar.style.width = `${pct}%`
-      ldrCount.textContent = `${loaded} / ${total}`
-    }
-
-    const waitForImages = Promise.all(allImgs.map(img => {
-      if (img.complete) { onOneLoaded(); return Promise.resolve() }
-      return new Promise(res => {
-        img.addEventListener('load', () => { onOneLoaded(); res() }, { once: true })
-        img.addEventListener('error', () => { onOneLoaded(); res() }, { once: true })
-      })
-    }))
+    // ...已移除 loading indicator 相關程式...
 
     // Fade out background music, start journey BGM with Web Audio API (iOS volume fix)
     window.dispatchEvent(new Event('journey-start'))
@@ -285,107 +240,93 @@ export default function MainScroll() {
       gsap.to(progressBarRef.current.parentElement, { opacity: 0, duration: 0.3 })
     }
 
-    const imgs = gsap.utils.toArray(overlay.querySelectorAll('.rewind-img'))
-    const finalImg = finalImgRef.current
-
-    gsap.set(imgs, { opacity: 0, scale: 1.5, transformPerspective: 800 })
-    gsap.set(finalImg, { opacity: 0, scale: 1.05 })
-
     const entranceText = entranceTextRef.current
-    gsap.set(entranceText, { opacity: 0, y: 20 })
+    if (entranceText) gsap.set(entranceText, { opacity: 0 })
 
-    // Wait for all rewind images before starting animation
-    waitForImages.then(() => {
-      overlay.removeChild(loadingEl)
+    const firstVideo = firstVideoRef.current
+    const loopVideo = loopVideoRef.current
 
-      const tl = gsap.timeline()
-
-      // Rewind: play images in reverse order, each from outside → center, getting faster
-      const total = imageInfos.length
-      const maxDriftY = -20
-      let dur = 0.4
-      const minDur = 0.12
-      let rewindIdx = 0
-
-      for (let i = total - 1; i >= 0; i--) {
-        const img = imgs[i]
-        const dir = directions[imageInfos[i].dirIdx]
-        const startX = typeof dir.x === 'function' ? dir.x() : dir.x
-        const progress = (rewindIdx + 1) / total
-        const gray = Math.pow(progress, 0.5)
-        const driftY = maxDriftY * Math.pow(progress, 2)
-        const driftYpx = (driftY / 100) * window.innerHeight
-
-        // Set to scattered position
-        tl.set(img, {
-          opacity: 0,
-          scale: 1.5,
-          x: startX,
-          y: dir.y,
-          rotateY: dir.rotateY,
-          rotateX: dir.rotateX,
-          filter: `grayscale(${gray})`,
-        })
-
-        // Fly in from outside to converge point
-        tl.to(img, {
-          opacity: 1,
-          scale: 1,
-          x: 0,
-          y: driftYpx,
-          rotateY: 0,
-          rotateX: 0,
-          duration: dur * 0.95,
-          ease: 'power2.out',
-        })
-
-        // Shrink and fade
-        tl.to(img, {
-          opacity: 0,
-          scale: 0.3,
-          duration: dur * 0.05,
-          ease: 'power2.in',
-        })
-
-        dur = Math.max(minDur, dur * 0.87)
-        rewindIdx++
+    // Helper: show entrance text with delay
+    const showEntranceText = (delay) => {
+      if (FINAL_TEXT_ENABLED && entranceText) {
+        gsap.to(entranceText, { opacity: 1, duration: 0.8, ease: 'power2.out', delay })
       }
+    }
 
-      // Reveal final image
-      tl.to(finalImg, {
-        opacity: 1,
-        scale: 1,
-        duration: 0.4,
-        ease: 'power2.inOut',
-        onComplete: () => {
-          if (!HEAT_HAZE_ENABLED) return
-          // Start SVG turbulence animation
-          const turbNode = turbRef.current
-          if (!turbNode) return
-          let t = 0
-          const interval = 1000 / HEAT_HAZE_FPS
-          let lastFrame = 0
-          const animate = (now) => {
-            hazeRafRef.current = requestAnimationFrame(animate)
-            if (now - lastFrame < interval) return
-            lastFrame = now
-            t += 0.008
-            const bfX = 0.005 + Math.cos(t) * 0.003
-            const bfY = 0.01 + Math.sin(t * 0.7) * 0.005
-            turbNode.setAttribute('baseFrequency', `${bfX} ${bfY}`)
+    // Fade in overlay (black), then start video when ready
+    gsap.to(overlay, {
+      opacity: 1,
+      duration: 0.6,
+      ease: 'power2.inOut',
+      onComplete: () => {
+        // If slow network detected during preload, skip first_round
+        const skipFirst = window.__skipFirstRound === true
+        if (FIRST_ROUND_ENABLED && !skipFirst && !STATIC_IMAGE_FALLBACK && firstVideo) {
+          // Play video — start immediately if buffered, otherwise wait briefly
+          let started = false
+          const startFirstVideo = () => {
+            if (started) return
+            started = true
+            firstVideo.play().catch(() => {})
           }
-          hazeRafRef.current = requestAnimationFrame(animate)
-        },
-      }, '-=0.2')
+          // Show entrance text only after video actually starts playing
+          firstVideo.addEventListener('playing', () => {
+            firstVideo.style.opacity = '1'
+            showEntranceText(3.24)
+          }, { once: true })
+          if (firstVideo.readyState >= 3) {
+            startFirstVideo()
+          } else {
+            firstVideo.addEventListener('canplay', startFirstVideo, { once: true })
+            // Fallback: don't stay black forever if event never fires
+            setTimeout(startFirstVideo, 2000)
+          }
+        } else if (!STATIC_IMAGE_FALLBACK) {
+          // Skip first_round → 直接秀 fallback image + entrance text
+          if (firstVideo) firstVideo.style.display = 'none'
+          if (fallbackImgRef.current) fallbackImgRef.current.style.opacity = '1'
+          showEntranceText(1.5)
+          // 背景嘗試載入 loop video，載好後淡入替換 fallback image
+          if (loopVideo) {
+            const startLoop = () => {
+              loopVideo.style.display = ''
+              loopVideo.style.opacity = '0'
+              loopVideo.play().catch(() => {})
+              gsap.to(loopVideo, { opacity: 1, duration: 1.5, ease: 'power2.inOut' })
+            }
+            if (loopVideo.readyState >= 3) {
+              startLoop()
+            } else {
+              loopVideo.addEventListener('canplay', startLoop, { once: true })
+              if (loopVideo.preload === 'metadata') loopVideo.load()
+            }
+          }
+        } else {
+          showEntranceText(1.5)
+        }
+      },
+    })
 
-      // Show entrance text after delay
-      tl.to(entranceText, {
-        opacity: 1,
-        y: 0,
-        duration: 0.8,
-        ease: 'power2.out',
-      }, '+=1')
-    }) // end waitForImages.then
+    // When first video ends, show fallback image then switch to looping video
+    if (FIRST_ROUND_ENABLED && !STATIC_IMAGE_FALLBACK && firstVideo && loopVideo) {
+      firstVideo.addEventListener('ended', () => {
+        firstVideo.style.display = 'none'
+        // Show fallback image as bridge
+        if (fallbackImgRef.current) fallbackImgRef.current.style.opacity = '1'
+        const startLoop = () => {
+          loopVideo.style.display = ''
+          loopVideo.play().catch(() => {})
+          // Hide fallback once loop is playing
+          if (fallbackImgRef.current) fallbackImgRef.current.style.opacity = '0'
+        }
+        if (loopVideo.readyState >= 3) {
+          startLoop()
+        } else {
+          loopVideo.addEventListener('canplay', startLoop, { once: true })
+          if (loopVideo.preload === 'metadata') loopVideo.load()
+        }
+      }, { once: true })
+    }
   }, [])
 
   return (
@@ -419,7 +360,6 @@ export default function MainScroll() {
                 className="zoom-image"
                 src={`/images/${slide.src}.webp`}
                 alt={slide.src.toString()}
-                loading="lazy"
                 style={{
                   position: 'absolute',
                   width: 'clamp(200px, 60vw, 480px)',
@@ -516,36 +456,7 @@ export default function MainScroll() {
           pointerEvents: 'none',
         }}
       >
-        {imageInfos.map((info, i) => (
-          <img
-            key={i}
-            className="rewind-img"
-            src={`/images/${info.src}.webp`}
-            alt=""
-            style={{
-              position: 'absolute',
-              width: 'clamp(200px, 60vw, 480px)',
-              height: 'clamp(200px, 60vw, 480px)',
-              objectFit: 'cover',
-              borderRadius: '16px',
-              transformOrigin: 'center center',
-              filter: 'brightness(1.4)',
-              willChange: 'transform, opacity',
-              maskImage: 'radial-gradient(ellipse 70% 50% at center, black 20%, transparent 100%)',
-              WebkitMaskImage: 'radial-gradient(ellipse 80% 50% at center, black 70%, transparent 100%)',
-            }}
-          />
-        ))}
-        {/* Final image wrapper — contains sharp base + SVG haze overlay */}
-        <div
-          ref={finalImgRef}
-          style={{
-            position: 'absolute',
-            width: '100%',
-            height: '100%',
-          }}
-        >
-          {/* Sharp base layer */}
+        {STATIC_IMAGE_FALLBACK ? (
           <img
             src={`/images/${finalImage}.webp`}
             alt=""
@@ -556,47 +467,53 @@ export default function MainScroll() {
               objectFit: 'cover',
             }}
           />
-          {/* SVG heat haze overlay — clipped to bottom portion */}
-          {HEAT_HAZE_ENABLED && (
-            <>
-              <svg style={{ position: 'absolute', width: 0, height: 0 }}>
-                <defs>
-                  <filter id="heatHaze">
-                    <feTurbulence
-                      ref={turbRef}
-                      type="fractalNoise"
-                      baseFrequency="0.005 0.01"
-                      numOctaves="3"
-                      seed="2"
-                      result="noise"
-                    />
-                    <feDisplacementMap
-                      in="SourceGraphic"
-                      in2="noise"
-                      scale="18"
-                      xChannelSelector="R"
-                      yChannelSelector="G"
-                    />
-                  </filter>
-                </defs>
-              </svg>
-              <img
-                src={`/images/${finalImage}.webp`}
-                alt=""
-                style={{
-                  position: 'absolute',
-                  width: '100%',
-                  height: '100%',
-                  objectFit: 'cover',
-                  filter: 'url(#heatHaze)',
-                  clipPath: `inset(${HEAT_HAZE_START_Y}% 0 0 0)`,
-                  WebkitClipPath: `inset(${HEAT_HAZE_START_Y}% 0 0 0)`,
-                }}
-              />
-            </>
-          )}
-        </div>
-        <div
+        ) : (<>
+        <img
+          ref={fallbackImgRef}
+          src="/images/final.webp"
+          alt=""
+          style={{
+            position: 'absolute',
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover',
+            zIndex: 0,
+            opacity: 0,
+          }}
+        />
+        <video
+          ref={firstVideoRef}
+          src={FINAL_VIDEO_FIRST_SRC}
+          muted
+          playsInline
+          preload="auto"
+          style={{
+            position: 'absolute',
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover',
+            zIndex: 1,
+            opacity: 0,
+          }}
+        />
+        <video
+          ref={loopVideoRef}
+          src={FINAL_VIDEO_LOOP_SRC}
+          muted
+          loop
+          playsInline
+          preload="metadata"
+          style={{
+            position: 'absolute',
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover',
+            display: 'none',
+            zIndex: 1,
+          }}
+        />
+        </>)}
+        {FINAL_TEXT_ENABLED && <div
           ref={entranceTextRef}
           style={{
             position: 'absolute',
@@ -613,7 +530,7 @@ export default function MainScroll() {
           }}
         >
           出示此畫面即可入場
-        </div>
+        </div>}
       </div>
     </>
   )

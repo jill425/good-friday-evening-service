@@ -1,8 +1,112 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { Slides } from '../data/slides'
 
 const GOOGLE_SCRIPT_URL = process.env.NEXT_PUBLIC_GOOGLE_SCRIPT_URL || 'YOUR_GOOGLE_SCRIPT_URL_HERE' // 請在環境變數中設定
+
+// ── 影片預載設定 ──
+const PRELOAD_FIRST_VIDEO_ON_GATE = true              // true = email 送出後就開始下載 first_round，完成後才進入
+const FIRST_VIDEO_SRC = '/final_video_first_round.mp4'
+const PRELOAD_TIMEOUT = 15000                          // 最久等 15 秒，超時則跳過 first_round
+const SLOW_NET_SKIP = true                             // true = 偵測到慢網路直接跳過 first_round
+
+/** 偵測是否為慢網路（2G / slow-3G / saveData） */
+function isSlowNetwork() {
+  if (!SLOW_NET_SKIP) return false
+  const conn = navigator?.connection || navigator?.mozConnection || navigator?.webkitConnection
+  if (!conn) return false
+  if (conn.saveData) return true
+  const ect = conn.effectiveType
+  if (ect === 'slow-2g' || ect === '2g') return true
+  return false
+}
+
+/** 預載 first_round 影片，回傳 promise。若太慢或超時，設 skip flag */
+let _videoPreloadPromise = null
+function preloadFirstVideo() {
+  if (_videoPreloadPromise) return _videoPreloadPromise
+  if (!PRELOAD_FIRST_VIDEO_ON_GATE) return Promise.resolve()
+
+  // 慢網路直接跳過
+  if (isSlowNetwork()) {
+    window.__skipFirstRound = true
+    return Promise.resolve()
+  }
+
+  _videoPreloadPromise = new Promise((resolve) => {
+    let settled = false
+    const done = (skip) => {
+      if (settled) return
+      settled = true
+      if (skip) window.__skipFirstRound = true
+      resolve()
+    }
+
+    // 下載影片 blob 並存成 Object URL，讓 <video> 直接從記憶體讀
+    fetch(FIRST_VIDEO_SRC)
+      .then(res => {
+        if (!res.ok) { done(true); return }
+        return res.blob()
+      })
+      .then(blob => {
+        if (blob) {
+          window.__firstVideoBlobURL = URL.createObjectURL(blob)
+        }
+        done(false)
+      })
+      .catch(() => done(true))
+
+    // 總超時保底
+    setTimeout(() => done(true), PRELOAD_TIMEOUT)
+  })
+  return _videoPreloadPromise
+}
+
+/** 預載音檔 — module level singleton，不會重複下載 */
+let _audioPreloadPromise = null
+function _ensureAudioPreloaded() {
+  if (_audioPreloadPromise) return _audioPreloadPromise
+  _audioPreloadPromise = Promise.all([
+    // sorroww.m4a → blob URL（保證記憶體裡有）
+    fetch('/sorroww.m4a')
+      .then(r => r.ok ? r.blob() : null)
+      .then(blob => { if (blob) window.__sorrowBlobURL = URL.createObjectURL(blob) })
+      .catch(() => {}),
+    // cello-circle.m4a → 只暖 HTTP cache（BackgroundMusic 用 DOM <audio>）
+    fetch('/cello-circle.m4a').then(r => r.blob()).catch(() => {}),
+  ])
+  // 保底 8 秒
+  _audioPreloadPromise = Promise.race([
+    _audioPreloadPromise,
+    new Promise(r => setTimeout(r, 8000)),
+  ])
+  return _audioPreloadPromise
+}
+
+/** 預載所有 slide 圖片 + final.webp — 呼叫多次安全 */
+let _imagePreloadPromise = null
+function preloadSlideImages() {
+  if (_imagePreloadPromise) return _imagePreloadPromise
+  const srcs = [
+    ...Slides.filter(s => s.type === 'image').map(s => `/images/${s.src}.webp`),
+    '/images/final.webp',
+  ]
+  _imagePreloadPromise = Promise.all(
+    srcs.map(src => new Promise((resolve) => {
+      const img = new Image()
+      img.onload = resolve
+      img.onerror = resolve
+      img.src = src
+    }))
+  )
+  // 保底 12 秒（14 張圖共 ~1.75MB）
+  _imagePreloadPromise = Promise.race([
+    _imagePreloadPromise,
+    new Promise(r => setTimeout(r, 12000)),
+  ])
+  return _imagePreloadPromise
+}
 
 export default function EmailGate({ onUnlock }) {
   const isDev = process.env.NODE_ENV === 'development'
@@ -12,30 +116,21 @@ export default function EmailGate({ onUnlock }) {
   const [status, setStatus] = useState('idle') // idle, submitting, success, error
   const [message, setMessage] = useState('')
 
-  // Preload audio files — shared promise so it only runs once
-  const audioReadyRef = { current: null }
-  const ensureAudioPreloaded = () => {
-    if (audioReadyRef.current) return audioReadyRef.current
-    const files = ['/sorroww.m4a', '/cello-circle.m4a']
-    audioReadyRef.current = Promise.all(files.map(src => new Promise((resolve) => {
-      const a = new Audio()
-      a.preload = 'auto'
-      a.addEventListener('canplaythrough', () => resolve(), { once: true })
-      a.addEventListener('error', () => resolve(), { once: true })
-      a.src = src
-      setTimeout(resolve, 8000)
-    })))
-    return audioReadyRef.current
-  }
+  const ensureAudioPreloaded = _ensureAudioPreloaded
 
   useEffect(() => {
     setHydrated(true)
     ensureAudioPreloaded()
+    // 網頁 init 就開始預載影片和所有 slide 圖
+    preloadFirstVideo()
+    preloadSlideImages()
   }, [])
 
-  // Also preload on input focus as a fallback
+  // 點擊 email 輸入框時再次確認預載啟動
   const handleInputFocus = () => {
     ensureAudioPreloaded()
+    preloadFirstVideo()
+    preloadSlideImages()
   }
 
   const handleSubmit = async (e) => {
@@ -45,7 +140,7 @@ export default function EmailGate({ onUnlock }) {
     if (isDev) {
       setStatus('success')
       setMessage('（Dev 模式）即將進入...')
-      ensureAudioPreloaded().then(() => {
+      Promise.all([ensureAudioPreloaded(), preloadFirstVideo(), preloadSlideImages()]).then(() => {
         setIsVisible(false)
         if (onUnlock) onUnlock()
       })
@@ -63,7 +158,7 @@ export default function EmailGate({ onUnlock }) {
       setStatus('success')
       setMessage('感謝您的參與！')
       localStorage.setItem('email_gate_unlocked', 'true')
-      ensureAudioPreloaded().then(() => {
+      Promise.all([ensureAudioPreloaded(), preloadFirstVideo(), preloadSlideImages()]).then(() => {
         setIsVisible(false)
         if (onUnlock) onUnlock()
       })
@@ -88,9 +183,11 @@ export default function EmailGate({ onUnlock }) {
       setMessage('感謝您的參與！')
       localStorage.setItem('email_gate_unlocked', 'true')
 
-      // Preload audio files before entering — wait at least 1.5s for UX
-      const [,] = await Promise.all([
+      // Preload audio + video + image before entering — wait at least 1.5s for UX
+      await Promise.all([
         ensureAudioPreloaded(),
+        preloadFirstVideo(),
+        preloadSlideImages(),
         new Promise(r => setTimeout(r, 1500)),
       ])
 
