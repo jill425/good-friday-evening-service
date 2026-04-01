@@ -35,37 +35,34 @@ function preloadFirstVideo() {
 
   _videoPreloadPromise = new Promise((resolve) => {
     const start = Date.now()
-    const video = document.createElement('video')
-    video.preload = 'auto'
-    video.muted = true
-    video.playsInline = true
-    video.src = FIRST_VIDEO_SRC
-
+    let settled = false
     const done = (skip) => {
+      if (settled) return
+      settled = true
       if (skip) window.__skipFirstRound = true
-      video.removeAttribute('src')
-      video.load() // release memory
       resolve()
     }
 
-    // 在前 5 秒內檢查下載進度，若太慢就標記跳過
-    const speedCheckTimer = setTimeout(() => {
-      const elapsed = (Date.now() - start) / 1000
-      if (video.readyState < 3 && elapsed >= 5) {
-        done(true) // 5 秒都還沒 ready → 太慢，跳過
+    // 用 fetch 下載到 HTTP cache，讓 <video> 元素之後能從 cache 讀
+    fetch(FIRST_VIDEO_SRC)
+      .then(res => {
+        if (!res.ok) { done(true); return }
+        // 讀完整個 body 確保完整進 cache
+        return res.blob()
+      })
+      .then(() => done(false))
+      .catch(() => done(true))
+
+    // 在前 5 秒內檢查 — 若 fetch 還沒完成就標記太慢
+    setTimeout(() => {
+      if (!settled) {
+        const elapsed = (Date.now() - start) / 1000
+        if (elapsed >= 5) done(true)
       }
     }, 5000)
 
-    video.addEventListener('canplaythrough', () => {
-      clearTimeout(speedCheckTimer)
-      done(false) // 完整載入成功
-    }, { once: true })
-
     // 總超時保底
-    setTimeout(() => {
-      clearTimeout(speedCheckTimer)
-      done(video.readyState < 3) // 若還沒載完就跳過
-    }, PRELOAD_TIMEOUT)
+    setTimeout(() => done(true), PRELOAD_TIMEOUT)
   })
   return _videoPreloadPromise
 }
