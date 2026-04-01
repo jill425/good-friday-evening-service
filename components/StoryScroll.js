@@ -40,10 +40,11 @@ export default function MainScroll() {
     }
   }, [])
 
-  // Preload audio on mount
+  // Preload audio on mount — use blob URL if available
   useEffect(() => {
     if (journeyBgmRef.current) return
-    const bgm = new Audio('/sorroww.m4a')
+    const src = window.__sorrowBlobURL || '/sorroww.m4a'
+    const bgm = new Audio(src)
     bgm.preload = 'auto'
     journeyBgmRef.current = bgm
   }, [])

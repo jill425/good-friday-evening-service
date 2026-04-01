@@ -97,15 +97,20 @@ export default function EmailGate({ onUnlock }) {
   const audioReadyRef = { current: null }
   const ensureAudioPreloaded = () => {
     if (audioReadyRef.current) return audioReadyRef.current
-    const files = ['/sorroww.m4a', '/cello-circle.m4a']
-    audioReadyRef.current = Promise.all(files.map(src => new Promise((resolve) => {
-      const a = new Audio()
-      a.preload = 'auto'
-      a.addEventListener('canplaythrough', () => resolve(), { once: true })
-      a.addEventListener('error', () => resolve(), { once: true })
-      a.src = src
-      setTimeout(resolve, 8000)
-    })))
+    audioReadyRef.current = Promise.all([
+      // sorroww.m4a → blob URL（保證記憶體裡有）
+      fetch('/sorroww.m4a')
+        .then(r => r.ok ? r.blob() : null)
+        .then(blob => { if (blob) window.__sorrowBlobURL = URL.createObjectURL(blob) })
+        .catch(() => {}),
+      // cello-circle.m4a → 只暖 HTTP cache（BackgroundMusic 用 DOM <audio>）
+      fetch('/cello-circle.m4a').then(r => r.blob()).catch(() => {}),
+    ])
+    // 保底 8 秒
+    audioReadyRef.current = Promise.race([
+      audioReadyRef.current,
+      new Promise(r => setTimeout(r, 8000)),
+    ])
     return audioReadyRef.current
   }
 
